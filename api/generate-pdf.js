@@ -1,4 +1,4 @@
-// api/generate-pdf.js
+// api/generate-pdf.js - VERSÃO FINAL
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -11,7 +11,6 @@ function getHeirNameById(heirId, allHeirs) { const findHeir = (heirs) => { for (
 function generateHeirsHtml(heirs, level = 0) { if (!heirs || heirs.length === 0) return ''; return heirs.map(h => `<div class="preview-card" style="margin-left: ${level * 20}px;"><p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p><p><strong>Condição:</strong> <span>${h.estado || 'Não informado'}</span></p><p><strong>Documentos Pessoais:</strong> <span>${h.documentos || 'Não informado'}</span></p>${h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : ''}${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p><p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p></div>` : ''}${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card spouse"><p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p><p><strong>Regime de Bens:</strong> <span>${h.conjuge.regimeDeBens || 'Não informado'}</span></p></div>` : ''}${(h.estado === 'Falecido' && h.representantes && h.representantes.length > 0) ? `<div class="preview-sub-card danger"><p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p><p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, level + 1)}</div>` : ''}</div>`).join(''); }
 function getEditalStatus(edital) { if (edital.determinado === 'Não') return 'Não determinada a expedição.'; if (edital.status === 'Não Expedido') return 'Expedição pendente.'; if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`; return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`; }
 function getCustasStatus(custas) { if (custas.situacao === 'Isenção') return 'Isento de custas.'; if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.'; if (custas.situacao === 'Devidas') { const calculo = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente'; const pagamento = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente'; return `${calculo}, ${pagamento}.`; } return 'Situação não informada.'; }
-
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,7 +36,6 @@ export default async function handler(req, res) {
 
         const page = await browser.newPage();
         
-        // **** INÍCIO DO BLOCO HTML CORRIGIDO ****
         const htmlContent = `
           <html>
             <head><style>${css}</style></head>
@@ -79,14 +77,16 @@ export default async function handler(req, res) {
             </body>
           </html>
         `;
-        // **** FIM DO BLOCO HTML CORRIGIDO ****
-
+        
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' } });
-        console.log("Buffer do PDF criado. Tamanho:", pdfBuffer.length, "bytes.");
-
+        
+        // **INÍCIO DA CORREÇÃO FINAL**
         res.setHeader('Content-Type', 'application/pdf');
-        res.status(200).send(pdfBuffer);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.setHeader('Content-Disposition', 'inline; filename="certidao.pdf"');
+        res.status(200).end(pdfBuffer); 
+        // **FIM DA CORREÇÃO FINAL**
         
         console.log('PDF gerado e enviado com sucesso!');
 
