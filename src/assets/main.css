@@ -491,3 +491,30 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
     .preview-panel-container { padding: 1rem; }
     .preview-panel { padding: 1.5rem; }
 }
+
+/* --- REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF --- */
+
+@media print {
+    /* Garante que o fundo seja impresso, redundante com a opção do puppeteer mas bom ter */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Evita quebras de página dentro destes elementos */
+.preview-card,
+.preview-card-small,
+.preview-section {
+    page-break-inside: avoid;
+}
+
+/* Tenta evitar que uma quebra de página aconteça ANTES de um título de seção */
+.preview-section h3,
+.preview-section h4 {
+    page-break-before: auto; /* O padrão, mas podemos mudar se necessário */
+    page-break-after: avoid;  /* Tenta manter o conteúdo junto com o título */
+}
+
+/* Garante que a assinatura e o rodapé fiquem juntos */
+.preview-footer {
+    page-break-before: always; /* Força o rodapé a começar em uma nova página, se necessário, para não quebrar */
+}
