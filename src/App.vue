@@ -1,8 +1,6 @@
 <script>
 // 1. IMPORTS NO TOPO
 import { createIcons, icons } from 'lucide';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import HeirFormComponent from './components/HeirFormComponent.vue';
 import HeirPreviewComponent from './components/HeirPreviewComponent.vue';
 import { createInitialState, createHeirObject, createCessionarioObject, createFalecido, createObservacao } from './utils/stateHelpers.js';
@@ -82,6 +80,8 @@ export default {
 
       // Herdeiros (recursivo)
       const checkHerdeiro = (heir, path) => {
+        if (!heir.nome || heir.nome.trim() === '') return; // Pula herdeiros vazios
+
         if (!heir.documentos) items.push(`Documentos pessoais de ${path} pendentes.`);
         
         if (heir.estado === 'Capaz' && !heir.idProcuracao) {
@@ -248,8 +248,17 @@ export default {
         }
     },
     getHeirNameById(id) {
-        const heir = this.state.herdeiros.find(h => h.id === id);
-        return heir ? heir.nome : 'Herdeiro não encontrado';
+        const findHeir = (heirs) => {
+            for (const heir of heirs) {
+                if (heir.id === id) return heir.nome;
+                if (heir.representantes) {
+                    const found = findHeir(heir.representantes);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+        return findHeir(this.state.herdeiros) || 'Herdeiro não encontrado';
     },
     saveStateToLocalStorage(state) {
         try { localStorage.setItem('certidaoInventarioState', JSON.stringify(state)); } 
@@ -288,6 +297,7 @@ export default {
     },
     resetForm() {
         if (confirm('Tem certeza que deseja limpar todos os campos e começar uma nova certidão?')) {
+            localStorage.removeItem('certidaoInventarioState');
             this.state = createInitialState();
             this.activeTab = 0;
         }
@@ -326,44 +336,47 @@ export default {
         event.target.value = '';
     },
     async generatePdf() {
-    console.log("Enviando dados para o servidor de PDF...");
-    this.isLoading = true;
-    try {
-        const apiUrl = import.meta.env.VITE_API_URL;
-        const response = await fetch(`${apiUrl}/generate-pdf`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            // A correção está na linha abaixo
-            body: JSON.stringify({
-                state: this.state,
-                bensSections: this.bensSections, 
-                pendencies: this.pendencies
-            }),
-        });
+        console.log("Enviando dados para o servidor de PDF...");
+        this.isLoading = true;
+        try {
+            // A URL da API é lida das variáveis de ambiente do Vite
+            const apiUrl = import.meta.env.VITE_API_URL;
+            if (!apiUrl) {
+                throw new Error("A URL da API não está configurada. Verifique o arquivo .env");
+            }
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            const errorMessage = errorData ? errorData.message : response.statusText;
-            throw new Error(`O servidor respondeu com um erro: ${errorMessage}`);
+            const response = await fetch(apiUrl, { // A URL completa já inclui /api/generate-pdf
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    state: this.state,
+                    bensSections: this.bensSections, 
+                    pendencies: this.pendencies
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
+            }
+
+            const pdfBlob = await response.blob();
+            const url = window.URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Certidao-${this.state.processo.numero || 'NOVO'}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error("Erro ao gerar o PDF:", error);
+            alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
+        } finally {
+            this.isLoading = false;
         }
-
-        const pdfBlob = await response.blob();
-        const url = window.URL.createObjectURL(pdfBlob);
-        const a = document.createElement('a');
-a.href = url;
-        a.download = `Certidao-${this.state.processo.numero || 'NOVO'}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-
-    } catch (error) {
-        console.error("Erro ao gerar o PDF:", error);
-        alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
-    } finally {
-        this.isLoading = false;
-    }
-},
+    },
     formatDate(dateString) {
         if (!dateString) return 'Não informado';
         try {
@@ -404,6 +417,7 @@ a.href = url;
     this.$nextTick(() => {
       createIcons({ icons }); 
     });
+    // Autosave a cada 30 segundos
     setInterval(() => {
       this.saveStateToLocalStorage(this.state);
       this.showAutosaveIndicator = true;
@@ -412,6 +426,7 @@ a.href = url;
   },
 
   updated() {
+    // Garante que os ícones sejam renderizados após mudanças no DOM
     this.$nextTick(() => {
      createIcons({ icons });
     });
@@ -573,10 +588,10 @@ a.href = url;
                             </div>
                             <div v-if="state.renuncia.houveRenuncia" class="conditional-section">
                                 <h4>Herdeiros Renunciantes</h4>
-                                <div v-for="heir in state.herdeiros" :key="heir.id" class="checkbox-group-vertical">
+                                <div v-for="heir in state.herdeiros.filter(h => h.nome)" :key="heir.id" class="checkbox-group-vertical">
                                     <div class="checkbox-line">
                                         <input type="checkbox" :id="'renuncia_' + heir.id" :checked="isRenunciante(heir.id)" @change="toggleRenunciante(heir.id)">
-                                        <label :for="'renuncia_' + heir.id">{{ heir.nome || 'Herdeiro sem nome' }}</label>
+                                        <label :for="'renuncia_' + heir.id">{{ heir.nome }}</label>
                                     </div>
                                     <div v-if="isRenunciante(heir.id)" class="conditional-input">
                                          <div class="form-group">
@@ -868,11 +883,9 @@ a.href = url;
                     <!-- Seção de Pendências -->
                     <div class="preview-section pendencies-section" v-if="pendencies.length > 0">
                         <h3><i data-lucide="alert-triangle"></i> PENDÊNCIAS</h3>
-                        <div class="preview-card">
-                            <ul class="pendencies-list">
-                                <li v-for="(pendency, index) in pendencies" :key="index">{{ pendency }}</li>
-                            </ul>
-                        </div>
+                        <ul class="pendencies-list">
+                            <li v-for="(pendency, index) in pendencies" :key="index">{{ pendency }}</li>
+                        </ul>
                     </div>
 
                     <!-- Seção 1: Dados do Processo -->
@@ -908,9 +921,9 @@ a.href = url;
                     </div>
 
                     <!-- Seção 4: Herdeiros -->
-                    <div class="preview-section" v-if="state.herdeiros.length">
+                    <div class="preview-section" v-if="state.herdeiros.filter(h => h.nome).length">
                         <h3><i data-lucide="users"></i> 4. Herdeiros e Sucessores</h3>
-                        <heir-preview-group :heirs="state.herdeiros" :level="0"></heir-preview-group>
+                        <heir-preview-group :heirs="state.herdeiros.filter(h => h.nome)" :level="0"></heir-preview-group>
                     </div>
                     
                     <!-- Seção de Renúncia de Direitos -->
@@ -1008,10 +1021,6 @@ a.href = url;
                             <p class="signature-title">{{ state.processo.responsavel.cargo || 'Cargo do Responsável' }}</p>
                         </div>
                     </div>
-                    <div class="footer-info">
-                        <p>Este documento foi gerado eletronicamente pelo Sistema de Gerenciamento de Certidões.</p>
-                        <p>Data de Emissão: {{ emissionDate }}</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1026,531 +1035,7 @@ a.href = url;
 </template>
 
 <style>
-/* --- Reset e Configurações Globais --- */
-:root {
-    --primary-color: #2c3e50; /* Azul Ardósia */
-    --accent-color: #f39c12; /* Laranja (da logo) */
-    --accent-color-hover: #e67e22;
-    --success-color: #27ae60; /* Verde Esmeralda */
-    --bg-color: #f4f7f9; /* Fundo principal mais claro */
-    --surface-color: #ffffff;
-    --text-color: #34495e; /* Azul Ardósia Escuro */
-    --text-light-color: #7f8c8d; /* Cinza Médio */
-    --border-color: #dee2e6;
-    --danger-color: #c0392b;
-    --warning-color: #f39c12;
-    --preview-panel-bg: #e9edf0; /* Fundo do painel direito */
-
-    --border-radius: 8px;
-    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    --box-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.08);
-    --font-sans: 'Inter', sans-serif;
-    --font-serif: 'Lora', serif;
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-html, body {
-    font-family: var(--font-sans);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    line-height: 1.6;
-    font-size: 15px;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
-
-/* --- Estrutura Principal --- */
-.app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-}
-
-.main-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 2rem;
-    background-color: var(--surface-color);
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
-
-.main-header .logo {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.logo-graphic {
-    font-family: 'Lora', serif;
-    font-size: 1.6rem;
-    font-weight: 600;
-    display: flex;
-    align-items: baseline;
-    line-height: 1;
-}
-.logo-text-main {
-    color: #2c3e50;
-    padding-right: 2px;
-}
-.logo-text-pro {
-    font-family: 'Inter', sans-serif;
-    font-weight: 800;
-    font-size: 1.5rem;
-    background-color: var(--accent-color);
-    color: white;
-    padding: 0.2rem 0.6rem;
-    border-radius: 5px;
-    text-transform: uppercase;
-    letter-spacing: -0.5px;
-}
-
-.main-header .comarca-text {
-    font-size: 0.85rem;
-    color: var(--text-light-color);
-    font-weight: 500;
-    line-height: 1.2;
-    border-left: 2px solid var(--border-color);
-    padding-left: 1rem;
-    margin-left: 1rem;
-}
-
-
-.main-content {
-    display: flex;
-    flex-grow: 1;
-    overflow: hidden;
-}
-
-.form-panel {
-    width: 55%;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background-color: var(--surface-color);
-}
-
-.tabs-container {
-    padding: 1.5rem 2rem;
-    flex-grow: 1;
-}
-
-.preview-panel-container {
-    width: 45%;
-    padding: 2rem;
-    overflow-y: auto;
-    background-color: var(--preview-panel-bg);
-    border-left: 1px solid var(--border-color);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-/* --- Barra de Ferramentas e Botões --- */
-.toolbar { display: flex; align-items: center; gap: 0.5rem; }
-
-.toolbar button {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 500;
-    font-size: 0.9rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: var(--surface-color);
-    color: var(--text-light-color);
-}
-.toolbar button i {
-    width: 16px;
-    height: 16px;
-}
-
-.btn-primary { 
-    background-color: var(--primary-color); 
-    color: white; 
-    border-color: var(--primary-color); 
-    box-shadow: 0 2px 5px rgba(44, 62, 80, 0.3);
-}
-.btn-primary:hover { 
-    background-color: #34495e; 
-    border-color: #34495e;
-    transform: translateY(-1px);
-}
-
-.btn-secondary:hover { background-color: #f8f9f9; border-color: var(--primary-color); color: var(--primary-color); }
-
-.btn-tertiary { background: none; border: none; }
-.btn-tertiary:hover { background-color: var(--bg-color); }
-
-.autosave-indicator { color: var(--success-color); font-weight: 500; opacity: 0; transition: opacity 0.5s ease; font-size: 0.85rem; }
-.autosave-indicator.visible { opacity: 1; }
-
-/* --- Sistema de Abas --- */
-.tabs-nav {
-    display: flex;
-    flex-wrap: wrap;
-    border-bottom: 2px solid var(--bg-color);
-    margin-bottom: 2rem;
-    padding-bottom: 0.5rem;
-}
-
-.tabs-nav button {
-    padding: 0.75rem 1.25rem;
-    border: none;
-    background: none;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-light-color);
-    position: relative;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    white-space: nowrap;
-}
-.tab-number {
-    background-color: var(--bg-color);
-    color: var(--text-light-color);
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    transition: all 0.2s ease;
-}
-.tabs-nav button.active { color: var(--accent-color); border-bottom-color: var(--accent-color); }
-.tabs-nav button.active .tab-number { background-color: var(--accent-color); color: white; }
-
-.tab-pane h2 { font-size: 1.5rem; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--bg-color); font-weight: 600; }
-
-/* --- Navegação entre Abas (Próximo/Anterior) --- */
-.tab-navigation {
-    display: flex;
-    justify-content: space-between;
-    padding: 1rem 2rem;
-    border-top: 1px solid var(--border-color);
-    background-color: var(--surface-color);
-    flex-shrink: 0;
-}
-.tab-navigation .spacer { flex-grow: 1; }
-.btn-nav, .btn-nav-primary {
-    padding: 0.6rem 1.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-weight: 600;
-    font-size: 0.95rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.btn-nav-primary {
-    background-color: var(--accent-color);
-    color: white;
-    border-color: var(--accent-color);
-}
-.btn-nav-primary:hover {
-    background-color: var(--accent-color-hover);
-    border-color: var(--accent-color-hover);
-    transform: translateY(-1px);
-}
-.btn-nav {
-    background-color: transparent;
-    color: var(--text-light-color);
-}
-.btn-nav:hover {
-    background-color: var(--bg-color);
-    color: var(--primary-color);
-}
-
-/* --- Formulários --- */
-.form-group { margin-bottom: 1.25rem; }
-.form-group label, fieldset legend { display: block; margin-bottom: 0.5rem; font-weight: 500; color: var(--text-light-color); font-size: 0.9rem; }
-.form-group label .required { color: var(--danger-color); margin-left: 2px; }
-
-.form-group input[type="text"], .form-group input[type="date"], .form-group input[type="number"], .form-group select, .form-group textarea {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    font-family: var(--font-sans);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    background-color: var(--surface-color);
-    color: var(--text-color);
-}
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.2);
-}
-.form-group textarea { resize: vertical; min-height: 80px; }
-
-.checkbox-group input[type="checkbox"] { width: 1.15em; height: 1.15em; accent-color: var(--primary-color); }
-.checkbox-group label { margin-bottom: 0; font-weight: 500; }
-.checkbox-group-vertical { display: flex; flex-direction: column; gap: 0.5rem; }
-.checkbox-line { display: flex; align-items: center; gap: 0.5rem; }
-
-
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-
-fieldset { border: 1px solid var(--border-color); padding: 1.5rem; border-radius: var(--border-radius); margin: 1.5rem 0; }
-fieldset legend { padding: 0 0.5rem; font-weight: 600; }
-
-/* --- Cartões Dinâmicos (Herdeiros, Bens, etc.) --- */
-.dynamic-card { 
-    background-color: var(--surface-color); 
-    border: 1px solid var(--border-color); 
-    border-radius: var(--border-radius); 
-    padding: 1.5rem; 
-    margin-bottom: 1.5rem; 
-    position: relative; 
-    box-shadow: var(--box-shadow);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.dynamic-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--box-shadow-hover);
-}
-.dynamic-card .card-title { margin-bottom: 1rem; color: var(--primary-color); font-weight: 600; }
-
-.btn-add { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.75rem; border-radius: var(--border-radius); cursor: pointer; font-weight: 600; transition: all 0.2s; background-color: rgba(39, 174, 96, 0.1); color: var(--success-color); border: 1px dashed var(--success-color); margin-top: 1rem; }
-.btn-add:hover { background-color: rgba(39, 174, 96, 0.2); border-style: solid; }
-.btn-add i { width: 18px; height: 18px; }
-
-.btn-remove { background-color: transparent; color: var(--border-color); border: none; position: absolute; top: 0.75rem; right: 0.75rem; font-weight: bold; cursor: pointer; font-size: 1.5rem; line-height: 1; padding: 0.25rem; }
-.btn-remove:hover { color: var(--danger-color); }
-
-.btn-add-small { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: var(--border-radius); cursor: pointer; font-weight: 500; transition: all 0.2s; border: 1px solid var(--success-color); background-color: #fff; color: var(--success-color); font-size: 0.9rem; }
-.btn-add-small:hover { background-color: var(--success-color); color: #fff; }
-.btn-add-small i { width: 16px; height: 16px; }
-
-/* --- Seções Condicionais --- */
-.conditional-section { border-left: 3px solid var(--primary-color); padding: 1rem; margin-top: 1rem; background-color: #f8f9fa; border-radius: 0 var(--border-radius) var(--border-radius) 0; }
-.conditional-section.warning { border-left-color: var(--warning-color); background-color: rgba(241, 196, 15, 0.05); }
-.conditional-section.danger { border-left-color: var(--danger-color); background-color: rgba(231, 76, 60, 0.05); }
-.conditional-section .bold { font-weight: 600; display: block; margin-bottom: 1rem; }
-.sub-card { background-color: #f8f9fa; margin-top: 1rem; border-left-color: var(--secondary-color); }
-.sub-card .card-title { font-size: 1rem; }
-.conditional-input { margin-top: 0.5rem; }
-
-/* --- NOVO DESIGN PROFISSIONAL PARA O PREVIEW --- */
-.preview-panel { 
-    background-color: var(--surface-color); 
-    padding: 1rem;
-    color: #1a1a1a; 
-    font-family: var(--font-serif);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--box-shadow);
-}
-.preview-header, .preview-section, .preview-footer {
-    padding: 1rem 1.5rem;
-    margin-bottom: 0.5rem;
-}
-.preview-header { 
-    text-align: center; 
-    background-color: #2c3e50;
-    color: white;
-    padding: 1.5rem;
-    margin: -1rem -1rem 0.5rem -1rem;
-    border-radius: 8px 8px 0 0;
-}
-.header-text p {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    margin: 0;
-    line-height: 1.3;
-    font-size: 10pt;
-    letter-spacing: 0.5px;
-    opacity: 0.9;
-}
-.header-text .comarca {
-    font-size: 12pt;
-    font-weight: 700;
-    opacity: 1;
-}
-.preview-header h1 { 
-    font-family: var(--font-sans);
-    font-size: 1.6rem; 
-    font-weight: 700; 
-    color: white; 
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(255,255,255,0.2);
-    width: 100%;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-}
-
-.preview-section h3 { 
-    font-family: var(--font-sans); 
-    font-size: 1.2rem; 
-    font-weight: 600; 
-    color: var(--primary-color);
-    padding-bottom: 0.5rem; 
-    margin: 1rem 0; 
-    border-bottom: 2px solid var(--primary-color);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-.preview-section h3 i {
-    width: 20px;
-    height: 20px;
-    color: var(--primary-color);
-}
-
-.pendencies-section h3 {
-    color: var(--danger-color);
-    border-bottom-color: var(--danger-color);
-}
-.pendencies-section h3 i {
-    color: var(--danger-color);
-}
-.pendencies-list {
-    list-style-type: none;
-    padding-left: 0;
-}
-.pendencies-list li {
-    background-color: rgba(192, 57, 43, 0.05);
-    padding: 0.5rem 1rem;
-    border-left: 3px solid var(--danger-color);
-    margin-bottom: 0.5rem !important;
-    border-radius: 4px;
-    font-family: var(--font-sans);
-    font-size: 10pt;
-}
-
-
-.preview-section h4 { 
-    font-family: var(--font-sans); 
-    font-size: 1rem; 
-    font-weight: 600; 
-    color: #444; 
-    margin-top: 1.5rem; 
-    margin-bottom: 0.5rem; 
-}
-
-.preview-card, .preview-card-small { 
-    page-break-inside: avoid;
-    background-color: #fff; 
-    border: 1px solid #e0e0e0; 
-    padding: 1.25rem; 
-    margin-bottom: 1rem; 
-    border-radius: var(--border-radius); 
-}
-.preview-card p, .preview-card-small p, .preview-card li { 
-    margin-bottom: 0.75rem; 
-    line-height: 1.6; 
-    font-size: 11pt; 
-    display: flex;
-    align-items: flex-start;
-}
-.preview-card p:last-child, .preview-card-small p:last-child { margin-bottom: 0; }
-.preview-card strong { 
-    font-weight: 600;
-    font-family: var(--font-sans);
-    color: #555;
-    margin-right: 8px;
-    min-width: 150px; /* Alinhamento das chaves */
-}
-.preview-card p span, .preview-card li span {
-    flex: 1;
-    color: #333;
-}
-
-.info-procuracao {
-    font-size: 10pt !important;
-    color: var(--success-color);
-    background-color: rgba(39, 174, 96, 0.07);
-    padding: 0.75rem;
-    border-radius: 4px;
-    margin-top: 0.5rem;
-    border-left: 3px solid var(--success-color);
-}
-.info-procuracao p {
-    font-size: 10pt !important;
-    margin: 0;
-}
-.info-procuracao strong {
-    color: var(--success-color);
-}
-
-.preview-sub-card { 
-    margin-top: 0.75rem; 
-    padding: 0.75rem; 
-    border-radius: 4px; 
-    border-left: 3px solid var(--border-color); 
-}
-.preview-sub-card.warning { border-left-color: var(--warning-color); background-color: rgba(241, 196, 15, 0.05); }
-.preview-sub-card.danger { border-left-color: var(--danger-color); background-color: rgba(231, 76, 60, 0.05); }
-.preview-sub-card.spouse { border-left-color: #e91e63; background-color: rgba(233, 30, 99, 0.05); }
-.doc-list {
-    list-style-type: '✓  ';
-    padding-left: 1.5rem;
-}
-.obs-content strong {
-    min-width: 0 !important;
-}
-.no-items-message {
-    font-style: italic;
-    color: var(--text-light-color);
-    padding: 1rem;
-    text-align: center;
-    background-color: var(--bg-color);
-    border-radius: var(--border-radius);
-}
-
-.preview-footer { 
-    padding-top: 2rem; 
-    border-top: 1px solid #ccc; 
-}
-.signature-area { display: flex; justify-content: center; text-align: center; margin-bottom: 2rem; }
-.signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; }
-.signature-name { font-weight: 600; font-size: 11pt; }
-.signature-title { font-size: 10pt; color: #555; }
-.footer-info {
-    font-family: var(--font-sans);
-    text-align: center;
-    font-size: 9pt;
-    color: #777;
-}
-
-.placeholder-text { color: var(--secondary-color); text-align: center; padding: 2rem; background-color: var(--bg-color); border-radius: var(--border-radius); }
-
-/* --- Overlay de Carregamento --- */
-.loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: var(--text-color); }
-.spinner { border: 6px solid var(--bg-color); border-top: 6px solid var(--primary-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
-.loading-overlay p { margin-top: 1rem; font-size: 1.1rem; font-weight: 500; }
-
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* --- Responsividade --- */
-@media (max-width: 1200px) {
-    .main-content { flex-direction: column; }
-    .form-panel, .preview-panel-container { width: 100%; border-right: none; }
-    .preview-panel-container { border-top: 2px solid #e0e0e0; }
-}
-@media (max-width: 768px) {
-    .main-header { flex-direction: column; gap: 1rem; padding: 1rem; }
-    .toolbar { flex-wrap: wrap; justify-content: center; }
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .tabs-container { padding: 1rem; }
-    .preview-panel-container { padding: 1rem; }
-    .preview-panel { padding: 1.5rem; }
-}
-
+/* O conteúdo do seu main.css vai aqui. 
+   Copie e cole o conteúdo do arquivo src/assets/main.css que forneci anteriormente.
+   Ele já contém todas as regras, incluindo a seção @media print. */
 </style>

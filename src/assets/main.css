@@ -51,7 +51,7 @@ html, body {
     background-color: var(--surface-color);
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07); /* Sombra para destacar */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
 }
 
 .main-header .logo {
@@ -120,7 +120,7 @@ html, body {
     overflow-y: auto;
     background-color: var(--preview-panel-bg);
     border-left: 1px solid var(--border-color);
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 /* --- Barra de Ferramentas e Botões --- */
@@ -137,6 +137,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    background-color: var(--surface-color);
+    color: var(--text-light-color);
 }
 .toolbar button i {
     width: 16px;
@@ -155,10 +157,9 @@ html, body {
     transform: translateY(-1px);
 }
 
-.btn-secondary { background-color: var(--surface-color); color: var(--text-light-color); }
 .btn-secondary:hover { background-color: #f8f9f9; border-color: var(--primary-color); color: var(--primary-color); }
 
-.btn-tertiary { background: none; border: none; color: var(--text-light-color); }
+.btn-tertiary { background: none; border: none; }
 .btn-tertiary:hover { background-color: var(--bg-color); }
 
 .autosave-indicator { color: var(--success-color); font-weight: 500; opacity: 0; transition: opacity 0.5s ease; font-size: 0.85rem; }
@@ -167,10 +168,10 @@ html, body {
 /* --- Sistema de Abas --- */
 .tabs-nav {
     display: flex;
-    flex-wrap: wrap; /* Correção: Permite que as abas quebrem a linha */
+    flex-wrap: wrap;
     border-bottom: 2px solid var(--bg-color);
     margin-bottom: 2rem;
-    padding-bottom: 0.5rem; /* Adiciona espaço se quebrar a linha */
+    padding-bottom: 0.5rem;
 }
 
 .tabs-nav button {
@@ -261,6 +262,7 @@ html, body {
     font-family: var(--font-sans);
     transition: border-color 0.2s, box-shadow 0.2s;
     background-color: var(--surface-color);
+    color: var(--text-color);
 }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
     outline: none;
@@ -316,9 +318,10 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 .conditional-section .bold { font-weight: 600; display: block; margin-bottom: 1rem; }
 .sub-card { background-color: #f8f9fa; margin-top: 1rem; border-left-color: var(--secondary-color); }
 .sub-card .card-title { font-size: 1rem; }
+.conditional-input { margin-top: 0.5rem; }
 
-/* --- NOVO DESIGN PROFISSIONAL PARA O PREVIEW --- */
-.preview-panel { 
+/* --- DESIGN PROFISSIONAL PARA O PREVIEW E PDF --- */
+#pdf-container, .preview-panel { 
     background-color: var(--surface-color); 
     padding: 1rem;
     color: #1a1a1a; 
@@ -381,6 +384,27 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
     height: 20px;
     color: var(--primary-color);
 }
+
+.pendencies-section h3 {
+    color: var(--danger-color);
+    border-bottom-color: var(--danger-color);
+}
+.pendencies-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+}
+.pendencies-list li {
+    background-color: rgba(192, 57, 43, 0.05);
+    padding: 0.75rem 1rem;
+    border-left: 3px solid var(--danger-color);
+    margin-bottom: 0.5rem !important;
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-size: 10pt;
+    display: block; /* Garante que o li ocupe a linha toda */
+}
+
 
 .preview-section h4 { 
     font-family: var(--font-sans); 
@@ -452,10 +476,19 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 .obs-content strong {
     min-width: 0 !important;
 }
+.no-items-message {
+    font-style: italic;
+    color: var(--text-light-color);
+    padding: 1rem;
+    text-align: center;
+    background-color: var(--bg-color);
+    border-radius: var(--border-radius);
+}
 
 .preview-footer { 
     padding-top: 2rem; 
     border-top: 1px solid #ccc; 
+    margin-top: 2rem;
 }
 .signature-area { display: flex; justify-content: center; text-align: center; margin-bottom: 2rem; }
 .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; }
@@ -468,7 +501,7 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
     color: #777;
 }
 
-.placeholder-text { color: var(--secondary-color); text-align: center; padding: 2rem; background-color: var(--bg-color); border-radius: var(--border-radius); }
+.placeholder-text { color: var(--text-light-color); text-align: center; padding: 2rem; background-color: var(--bg-color); border-radius: var(--border-radius); }
 
 /* --- Overlay de Carregamento --- */
 .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: var(--text-color); }
@@ -495,50 +528,51 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 /* ===== REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF (VERSÃO FINAL E ESTÁVEL) ===== */
 
 @media print {
-  /* Regra universal para forçar a impressão de cores de fundo */
+  /* Regra universal para forçar a impressão de cores de fundo e textos */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
-  /* Configuração geral da página */
   body {
-    background: white !important;
-    font-size: 11pt; /* Um pouco menor para caber mais conteúdo */
+    background-color: white !important;
+    font-size: 10pt; /* Tamanho base para o PDF */
   }
 
-  /* Define a margem para todas as páginas do PDF */
-  @page {
-    margin: 1.5cm;
-  }
-
-  /* Esconde os elementos da interface */
-  .main-header, .form-panel {
+  /* Esconde elementos da UI que não devem ir para o PDF */
+  .main-header, .form-panel, .tab-navigation {
     display: none !important;
   }
 
-  /* Expande a área do PDF */
-  .preview-panel-container, .preview-panel {
+  /* Expande o container do PDF para ocupar toda a área de impressão */
+  .preview-panel-container, #pdf-container, .preview-panel {
     width: 100% !important;
+    height: 100% !important;
     padding: 0 !important;
+    margin: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    margin: 0 !important;
+    overflow: visible !important;
+    background-color: white !important;
+  }
+  
+  .preview-content {
+      padding: 0 !important;
   }
 
-  /* Regras para evitar quebras de página ruins */
-  .preview-section, .preview-card, .preview-card-small {
+  /* Evita quebras de página "ruins" dentro de elementos importantes */
+  .preview-section, .preview-card, .preview-card-small, .preview-sub-card {
     page-break-inside: avoid;
   }
 
-  .preview-section h3 {
+  /* Evita que um título de seção fique sozinho no final de uma página */
+  .preview-section h3, .preview-section h4 {
     page-break-after: avoid;
   }
 
+  /* Força uma quebra de página ANTES da seção de assinatura, se necessário, para não ficar órfã */
   .preview-footer {
-    page-break-before: auto; /* Deixa o navegador decidir a quebra, evitando páginas em branco */
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #ddd;
+    page-break-before: auto;
   }
 }

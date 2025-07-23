@@ -5,24 +5,30 @@ import chromium from '@sparticuz/chromium';
 import fs from 'fs/promises';
 import path from 'path';
 
-// --- SUAS FUNÇÕES AUXILIARES ---
+// --- FUNÇÕES AUXILIARES (SEM MUDANÇAS) ---
 function formatDate(dateString) { if (!dateString) return 'Não informado'; try { const date = new Date(dateString + 'T00:00:00'); if (isNaN(date.getTime())) return dateString; return date.toLocaleDateString('pt-BR'); } catch (e) { return dateString; } }
 function getHeirNameById(heirId, allHeirs) { const findHeir = (heirs) => { for (const heir of heirs) { if (heir.id === heirId) return heir.nome; if (heir.representantes && heir.representantes.length > 0) { const found = findHeir(heir.representantes); if (found) return found; } } return null; }; return findHeir(allHeirs) || 'Herdeiro não encontrado'; }
 function generateHeirsHtml(heirs, level = 0) { if (!heirs || heirs.length === 0) return ''; return heirs.map(h => `<div class="preview-card" style="margin-left: ${level * 20}px;"><p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p><p><strong>Condição:</strong> <span>${h.estado || 'Não informado'}</span></p><p><strong>Documentos Pessoais:</strong> <span>${h.documentos || 'Não informado'}</span></p>${h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : ''}${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p><p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p></div>` : ''}${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card spouse"><p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p><p><strong>Regime de Bens:</strong> <span>${h.conjuge.regimeDeBens || 'Não informado'}</span></p></div>` : ''}${(h.estado === 'Falecido' && h.representantes && h.representantes.length > 0) ? `<div class="preview-sub-card danger"><p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p><p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, level + 1)}</div>` : ''}</div>`).join(''); }
 function getEditalStatus(edital) { if (edital.determinado === 'Não') return 'Não determinada a expedição.'; if (edital.status === 'Não Expedido') return 'Expedição pendente.'; if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`; return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`; }
 function getCustasStatus(custas) { if (custas.situacao === 'Isenção') return 'Isento de custas.'; if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.'; if (custas.situacao === 'Devidas') { const calculo = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente'; const pagamento = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente'; return `${calculo}, ${pagamento}.`; } return 'Situação não informada.'; }
 
+
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
         return res.status(200).end();
     }
+    res.setHeader('Access-Control-Allow-Origin', '*');
 
     let browser = null;
     try {
         const { state: data, bensSections, pendencies } = req.body;
+
+        // MUDANÇA 1: Filtrar herdeiros vazios ANTES de gerar o HTML
+        const herdeirosValidos = data.herdeiros.filter(h => h.nome && h.nome.trim() !== '');
+
         const cssPath = path.join(process.cwd(), 'src', 'assets', 'main.css');
         const css = await fs.readFile(cssPath, 'utf8');
 
@@ -34,11 +40,13 @@ export default async function handler(req, res) {
         });
 
         const page = await browser.newPage();
+        
+        // MUDANÇA 2: Otimização da geração do HTML
         const htmlContent = `
           <html>
             <head><style>${css}</style></head>
             <body>
-              <div id="preview-panel" class="preview-panel">
+              <div id="pdf-container">
                 <div class="preview-header">
                   <div class="header-text">
                     <p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p>
@@ -47,12 +55,12 @@ export default async function handler(req, res) {
                   <h1>CERTIDÃO DE REGULARIDADE</h1>
                 </div>
                 <div class="preview-content">
-                  ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3><i data-lucide="alert-triangle"></i> PENDÊNCIAS</h3><div class="preview-card"><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div></div>` : ''}
+                  ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}
                   ${data.processo.numero ? `<div class="preview-section"><h3>1. Dados do Processo</h3><div class="preview-card"><p><strong>Número do Processo:</strong><span>${data.processo.numero}</span></p>${data.processo.cumulativo ? `<p><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>` : ''}</div></div>` : ''}
                   ${data.falecidos.length > 0 ? `<div class="preview-section"><h3>2. De Cujus (Falecido/a/s)</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome || 'Não informado'}</span></p><p><strong>Data do Falecimento:</strong><span>${formatDate(f.dataFalecimento)}</span></p><p><strong>Certidão de Óbito (ID):</strong><span>${f.idCertidaoObito || 'Não informado'}</span></p></div>`).join('')}</div>` : ''}
                   ${data.inventariante.nome ? `<div class="preview-section"><h3>3. Inventariante</h3><div class="preview-card"><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p><p><strong>Parentesco:</strong><span>${data.inventariante.parentesco || 'Não informado'}</span></p><p><strong>Termo de Compromisso (ID):</strong><span>${data.inventariante.idTermoCompromisso || 'Não informado'}</span></p>${data.inventariante.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${data.inventariante.idProcuracao}</span></p></div>` : ''}</div></div>` : ''}
-                  ${data.herdeiros && data.herdeiros.length > 0 ? `<div class="preview-section"><h3>4. Herdeiros e Sucessores</h3>${generateHeirsHtml(data.herdeiros)}</div>` : ''}
-                  ${data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0 ? `<div class="preview-section"><h3>Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, data.herdeiros)}</span></p><p><strong>Tipo de Renúncia:</strong><span>${r.tipo}</span></p><p><strong>ID da Escritura/Termo:</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>` : ''}
+                  ${herdeirosValidos.length > 0 ? `<div class="preview-section"><h3>4. Herdeiros e Sucessores</h3>${generateHeirsHtml(herdeirosValidos)}</div>` : ''}
+                  ${data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0 ? `<div class="preview-section"><h3>Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, herdeirosValidos)}</span></p><p><strong>Tipo de Renúncia:</strong><span>${r.tipo}</span></p><p><strong>ID da Escritura/Termo:</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>` : ''}
                   ${data.cessao.houveCessao && data.cessao.cessionarios.length > 0 ? `<div class="preview-section"><h3>Cessão de Direitos</h3><div class="preview-card"><p><strong>Escritura de Cessão (ID):</strong><span>${data.cessao.idEscritura || 'Não informado'}</span></p>${data.cessao.cessionarios.map(c => `<div class="preview-sub-card"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p><p><strong>Documentos:</strong><span>${c.documentos || 'Não informado'}</span></p>${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}</div>`).join('')}</div></div>` : ''}
                   ${Object.values(data.bens).some(arr => Array.isArray(arr) && arr.length > 0) ? `<div class="preview-section"><h3>5. Relação de Bens, Direitos e Dívidas</h3>${bensSections.map(section => { if (data.bens[section.key] && data.bens[section.key].length > 0) { return `<h4>${section.title}</h4>${data.bens[section.key].map(item => `<div class="preview-card-small">${section.fields.map(field => `<p><strong>${field.label}:</strong> <span>${item[field.model] || 'N/A'}</span></p>`).join('')}</div>`).join('')}`; } return ''; }).join('')}</div>` : ''}
                   <div class="preview-section"><h3>6. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})` : 'Não Apresentada'}</span></p><p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})` : 'Não Apresentada'}</span></p>${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status === 'Proferida' ? `Proferida (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})` : 'Não Proferida'}</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status === 'Ocorrido' ? `Ocorrido (ID: ${data.documentosProcessuais.transito.id || 'N/A'})` : 'Não Ocorrido'}</span></p></div></div>
@@ -66,10 +74,6 @@ export default async function handler(req, res) {
                             <p class="signature-title">${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p>
                         </div>
                     </div>
-                    <div class="footer-info">
-                        <p>Este documento foi gerado eletronicamente pelo Sistema de Gerenciamento de Certidões.</p>
-                        <p>Data de Emissão: ${new Date().toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'})}</p>
-                    </div>
                 </div>
               </div>
             </body>
@@ -77,19 +81,30 @@ export default async function handler(req, res) {
         `;
 
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        
-        // Ativa o modo de impressão para aplicar o CSS correto
-        await page.emulateMediaType('print');
 
-        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+        // MUDANÇA 3: Configurações do PDF para um visual profissional
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: {
+                top: '1.5cm',
+                right: '1.5cm',
+                bottom: '1.5cm',
+                left: '1.5cm'
+            },
+            displayHeaderFooter: true,
+            footerTemplate: `
+              <div style="font-family: Arial, sans-serif; font-size: 9px; text-align: center; color: #777; width: 100%; margin: 0 1.5cm;">
+                <p style="margin: 0;">Este documento foi gerado eletronicamente pelo Sistema CertidãoPRO</p>
+                <p style="margin: 0;">Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - Página <span class="pageNumber"></span> de <span class="totalPages"></span></p>
+              </div>
+            `,
+        });
         
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Length', pdfBuffer.length);
-        res.setHeader('Content-Disposition', 'inline; filename="certidao.pdf"');
-        res.status(200).end(pdfBuffer); 
+        res.setHeader('Content-Disposition', 'inline; filename="Certidao-PRO.pdf"');
+        res.status(200).send(pdfBuffer); 
         
-        console.log('PDF gerado e enviado com sucesso!');
-
     } catch (error) {
         console.error('Ocorreu um erro ao gerar o PDF:', error);
         res.status(500).json({ message: 'Erro ao gerar o PDF.', error: error.message });
