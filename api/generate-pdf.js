@@ -79,7 +79,7 @@ export default async function handler(req, res) {
         `;
         
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' } });
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true: { top: '0px', right: '0px', bottom: '0px', left: '0px' } });
         
         // **INÍCIO DA CORREÇÃO FINAL**
         res.setHeader('Content-Type', 'application/pdf');
