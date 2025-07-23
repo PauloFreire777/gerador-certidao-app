@@ -75,12 +75,15 @@ export default {
       const { inventariante, herdeiros, documentacaoTributaria, bens, documentosProcessuais, cessao, renuncia, custas } = this.state;
 
       // Inventariante
-      if (!inventariante.documentos) items.push('Documentos pessoais do Inventariante pendentes.');
-      if (!inventariante.idProcuracao) items.push('Procuração do Inventariante pendente.');
+      if (inventariante.nome) {
+          if (!inventariante.documentos) items.push('Documentos pessoais do Inventariante pendentes.');
+          if (!inventariante.idProcuracao) items.push('Procuração do Inventariante pendente.');
+      }
 
       // Herdeiros (recursivo)
       const checkHerdeiro = (heir, path) => {
-        if (!heir.nome || heir.nome.trim() === '') return; // Pula herdeiros vazios
+        // CORREÇÃO: Pula a validação de herdeiros que não foram preenchidos
+        if (!heir.nome || heir.nome.trim() === '') return;
 
         if (!heir.documentos) items.push(`Documentos pessoais de ${path} pendentes.`);
         
@@ -339,9 +342,6 @@ export default {
         console.log("Enviando dados para o servidor de PDF...");
         this.isLoading = true;
         try {
-            // CORREÇÃO: Define a URL da API de forma robusta.
-            // Em produção (Vercel), usamos um caminho relativo que sempre funciona.
-            // Em desenvolvimento, usamos a variável de ambiente para flexibilidade.
             const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
 
             if (!apiUrl) {
