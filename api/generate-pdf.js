@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL
+// api/generate-pdf.js - VERSÃO DE TESTE SEM CSS
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -24,8 +24,8 @@ export default async function handler(req, res) {
     try {
         const { state: data, bensSections, pendencies } = req.body;
 
-        const cssPath = path.join(process.cwd(), 'src', 'assets', 'main.css');
-        const css = await fs.readFile(cssPath, 'utf8');
+        // ***** LINHA DO CSS DESATIVADA PARA O TESTE *****
+        const css = ''; 
 
         browser = await puppeteer.launch({
             args: chromium.args,
@@ -77,16 +77,14 @@ export default async function handler(req, res) {
             </body>
           </html>
         `;
-        
+
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true: { top: '0px', right: '0px', bottom: '0px', left: '0px' } });
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
         
-        // **INÍCIO DA CORREÇÃO FINAL**
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Length', pdfBuffer.length);
         res.setHeader('Content-Disposition', 'inline; filename="certidao.pdf"');
         res.status(200).end(pdfBuffer); 
-        // **FIM DA CORREÇÃO FINAL**
         
         console.log('PDF gerado e enviado com sucesso!');
 
