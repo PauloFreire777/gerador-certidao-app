@@ -23,9 +23,8 @@ export default async function handler(req, res) {
     let browser = null;
     try {
         const { state: data, bensSections, pendencies } = req.body;
-
-        // ***** LINHA DO CSS DESATIVADA PARA O TESTE *****
-        const css = ''; 
+        const cssPath = path.join(process.cwd(), 'src', 'assets', 'main.css');
+        const css = await fs.readFile(cssPath, 'utf8');
 
         browser = await puppeteer.launch({
             args: chromium.args,
