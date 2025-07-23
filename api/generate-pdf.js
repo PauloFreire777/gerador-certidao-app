@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO DE TESTE SEM CSS
+// api/generate-pdf.js - VERSÃO FINAL CORRIGIDA
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -34,7 +34,6 @@ export default async function handler(req, res) {
         });
 
         const page = await browser.newPage();
-        
         const htmlContent = `
           <html>
             <head><style>${css}</style></head>
@@ -78,6 +77,10 @@ export default async function handler(req, res) {
         `;
 
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        
+        // Ativa o modo de impressão para aplicar o CSS correto
+        await page.emulateMediaType('print');
+
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
         
         res.setHeader('Content-Type', 'application/pdf');
