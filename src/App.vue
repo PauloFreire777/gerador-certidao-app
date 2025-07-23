@@ -72,20 +72,24 @@ export default {
     },
     pendencies() {
       const items = [];
-      const { inventariante, herdeiros, documentacaoTributaria, bens, documentosProcessuais, cessao, renuncia, custas } = this.state;
+      const { falecidos, inventariante, herdeiros, documentacaoTributaria, bens, documentosProcessuais, cessao, renuncia, custas } = this.state;
+
+      // Falecidos
+      falecidos.forEach(f => {
+        if (f.nome && !f.documentos) items.push(`ID dos Documentos Pessoais de ${f.nome} pendente.`);
+      });
 
       // Inventariante
       if (inventariante.nome) {
-          if (!inventariante.documentos) items.push('Documentos pessoais do Inventariante pendentes.');
+          if (!inventariante.documentos) items.push('ID dos Documentos Pessoais do Inventariante pendente.');
           if (!inventariante.idProcuracao) items.push('Procuração do Inventariante pendente.');
       }
 
       // Herdeiros (recursivo)
       const checkHerdeiro = (heir, path) => {
-        // CORREÇÃO: Pula a validação de herdeiros que não foram preenchidos
         if (!heir.nome || heir.nome.trim() === '') return;
 
-        if (!heir.documentos) items.push(`Documentos pessoais de ${path} pendentes.`);
+        if (!heir.documentos) items.push(`ID dos Documentos Pessoais de ${path} pendente.`);
         
         if (heir.estado === 'Capaz' && !heir.idProcuracao) {
           items.push(`Procuração de ${path} pendente.`);
@@ -111,7 +115,7 @@ export default {
         if (!cessao.idEscritura) items.push('ID da Escritura de Cessão de Direitos pendente.');
         cessao.cessionarios.forEach((c, i) => {
           if (!c.nome) items.push(`Nome do Cessionário ${i+1} pendente.`);
-          if (!c.documentos) items.push(`Documentos do Cessionário ${c.nome || i+1} pendentes.`);
+          if (!c.documentos) items.push(`ID dos Documentos do Cessionário ${c.nome || i+1} pendente.`);
           if (!c.idProcuracao) items.push(`Procuração do Cessionário ${c.nome || i+1} pendente.`);
         });
       }
@@ -516,8 +520,8 @@ export default {
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Documentos Pessoais (CPF/RG)</label>
-                                <input type="text" v-model="falecido.documentos" placeholder="CPF e RG">
+                                <label>ID dos Documentos Pessoais</label>
+                                <input type="text" v-model="falecido.documentos" placeholder="ID do documento (CPF/RG)">
                             </div>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -556,8 +560,8 @@ export default {
                                 <input type="text" v-model="state.inventariante.parentesco" placeholder="Ex: Cônjuge, Filho(a)">
                             </div>
                             <div class="form-group">
-                                <label>Documentos Pessoais (CPF/RG) <span class="required">*</span></label>
-                                <input type="text" v-model="state.inventariante.documentos">
+                                <label>ID dos Documentos Pessoais <span class="required">*</span></label>
+                                <input type="text" v-model="state.inventariante.documentos" placeholder="ID do documento (CPF/RG)">
                             </div>
                             <div class="grid-2">
                                 <div class="form-group">
@@ -635,11 +639,11 @@ export default {
                                         <input type="text" v-model="cessionario.nome">
                                     </div>
                                     <div class="form-group">
-                                        <label>Documentos do Cessionário</label>
+                                        <label>ID dos Documentos do Cessionário</label>
                                         <input type="text" v-model="cessionario.documentos">
                                     </div>
                                     <div class="form-group">
-                                        <label>Procuração do Cessionário (ID)</label>
+                                        <label>ID da Procuração do Cessionário</label>
                                         <input type="text" v-model="cessionario.idProcuracao">
                                     </div>
                                 </div>
@@ -909,32 +913,30 @@ export default {
                         <div v-for="(f, i) in state.falecidos" :key="f.id" class="preview-card">
                             <p><strong>Nome:</strong><span>{{ f.nome || 'Não informado' }}</span></p>
                             <p><strong>Data do Falecimento:</strong><span>{{ formatDate(f.dataFalecimento) }}</span></p>
+                            <p><strong>ID dos Documentos Pessoais:</strong><span>{{ f.documentos || 'Não informado' }}</span></p>
                             <p><strong>Certidão de Óbito (ID):</strong><span>{{ f.idCertidaoObito || 'Não informado' }}</span></p>
                         </div>
                     </div>
 
-                    <!-- Seção 3: Inventariante -->
-                    <div class="preview-section" v-if="state.inventariante.nome">
-                        <h3><i data-lucide="user-check"></i> 3. Inventariante</h3>
-                        <div class="preview-card">
+                    <!-- Seção 3: Inventariante, Herdeiros e Sucessores -->
+                    <div class="preview-section" v-if="state.inventariante.nome || state.herdeiros.filter(h => h.nome).length">
+                        <h3><i data-lucide="users"></i> 3. Inventariante, Herdeiros e Sucessores</h3>
+                        <div v-if="state.inventariante.nome" class="preview-card">
+                            <h4>Inventariante</h4>
                             <p><strong>Nome:</strong><span>{{ state.inventariante.nome }}</span></p>
                             <p><strong>Parentesco:</strong><span>{{ state.inventariante.parentesco || 'Não informado' }}</span></p>
+                            <p><strong>ID dos Documentos Pessoais:</strong><span>{{ state.inventariante.documentos || 'Não informado' }}</span></p>
                             <p><strong>Termo de Compromisso (ID):</strong><span>{{ state.inventariante.idTermoCompromisso || 'Não informado' }}</span></p>
                             <div v-if="state.inventariante.idProcuracao" class="info-procuracao">
                                 <p><strong>Procuração (ID):</strong><span>{{ state.inventariante.idProcuracao }}</span></p>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Seção 4: Herdeiros -->
-                    <div class="preview-section" v-if="state.herdeiros.filter(h => h.nome).length">
-                        <h3><i data-lucide="users"></i> 4. Herdeiros e Sucessores</h3>
-                        <heir-preview-group :heirs="state.herdeiros.filter(h => h.nome)" :level="0"></heir-preview-group>
+                        <heir-preview-group v-if="state.herdeiros.filter(h => h.nome).length" :heirs="state.herdeiros.filter(h => h.nome)" :level="0"></heir-preview-group>
                     </div>
                     
                     <!-- Seção de Renúncia de Direitos -->
                     <div class="preview-section" v-if="state.renuncia.houveRenuncia">
-                        <h3><i data-lucide="file-x-2"></i> Renúncia de Direitos</h3>
+                        <h3><i data-lucide="file-x-2"></i> 4. Renúncia de Direitos</h3>
                         <div v-for="r in state.renuncia.renunciantes" :key="r.herdeiroId" class="preview-card">
                             <p><strong>Renunciante:</strong><span>{{ getHeirNameById(r.herdeiroId) }}</span></p>
                             <p><strong>Tipo de Renúncia:</strong><span>{{ r.tipo }}</span></p>
@@ -944,14 +946,14 @@ export default {
 
                     <!-- Seção de Cessão de Direitos -->
                     <div class="preview-section" v-if="state.cessao.houveCessao">
-                        <h3><i data-lucide="arrow-right-left"></i> Cessão de Direitos</h3>
+                        <h3><i data-lucide="arrow-right-left"></i> 5. Cessão de Direitos</h3>
                         <div class="preview-card">
                             <p><strong>Escritura de Cessão (ID):</strong><span>{{ state.cessao.idEscritura || 'Não informado' }}</span></p>
                             <div v-for="c in state.cessao.cessionarios" :key="c.id" class="preview-sub-card">
                                 <p><strong>Cessionário:</strong><span>{{ c.nome }}</span></p>
-                                <p><strong>Documentos:</strong><span>{{ c.documentos }}</span></p>
+                                <p><strong>ID dos Documentos:</strong><span>{{ c.documentos }}</span></p>
                                 <div v-if="c.idProcuracao" class="info-procuracao">
-                                    <p><strong>Procuração (ID):</strong><span>{{ c.idProcuracao }}</span></p>
+                                    <p><strong>ID da Procuração:</strong><span>{{ c.idProcuracao }}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -959,7 +961,7 @@ export default {
 
                     <!-- Seção 5: Bens -->
                     <div class="preview-section" v-if="hasBens">
-                        <h3><i data-lucide="gem"></i> 5. Relação de Bens, Direitos e Dívidas</h3>
+                        <h3><i data-lucide="gem"></i> 6. Relação de Bens, Direitos e Dívidas</h3>
                         <div v-for="section in bensSections" :key="section.key">
                             <div v-if="state.bens[section.key] && state.bens[section.key].length">
                                 <h4>{{ section.title }}</h4>
@@ -974,7 +976,7 @@ export default {
 
                     <!-- Seção 6: Documentos Processuais -->
                     <div class="preview-section">
-                        <h3><i data-lucide="file-text"></i> 6. Documentos Processuais</h3>
+                        <h3><i data-lucide="file-text"></i> 7. Documentos Processuais</h3>
                         <div class="preview-card">
                             <p><strong>Primeiras Declarações:</strong> <span>{{ state.documentosProcessuais.primeirasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${state.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})` : 'Não Apresentada' }}</span></p>
                             <p><strong>Edital:</strong> <span>{{ getEditalStatus() }}</span></p>
@@ -998,7 +1000,7 @@ export default {
 
                     <!-- Seção 7: Documentação Tributária -->
                     <div class="preview-section" v-if="state.documentacaoTributaria.length || state.custas.situacao">
-                        <h3><i data-lucide="landmark"></i> 7. Regularidade Tributária e Custas</h3>
+                        <h3><i data-lucide="landmark"></i> 8. Regularidade Tributária e Custas</h3>
                         <div v-for="(trib, i) in state.documentacaoTributaria" :key="i" class="preview-card">
                             <p><strong>Referente a:</strong><span>{{ trib.nomeFalecido }}</span></p>
                             <p><strong>Status ITCD:</strong><span>{{ trib.statusItcd }}</span></p>
@@ -1013,7 +1015,7 @@ export default {
 
                     <!-- Seção 8: Observações -->
                     <div class="preview-section" v-if="state.observacoes.length">
-                        <h3><i data-lucide="message-square-plus"></i> 8. Observações Adicionais</h3>
+                        <h3><i data-lucide="message-square-plus"></i> 9. Observações Adicionais</h3>
                         <div v-for="(obs, i) in state.observacoes" :key="obs.id" class="preview-card">
                             <p><strong>{{ obs.titulo || 'Observação' }} (Relevância: {{ obs.relevancia }})</strong></p>
                             <p class="obs-content"><span>{{ obs.conteudo }}</span></p>
@@ -1041,7 +1043,5 @@ export default {
 </template>
 
 <style>
-/* O conteúdo do seu main.css vai aqui. 
-   Copie e cole o conteúdo do arquivo src/assets/main.css que forneci anteriormente.
-   Ele já contém todas as regras, incluindo a seção @media print. */
+/* O conteúdo do seu main.css vai aqui. */
 </style>
