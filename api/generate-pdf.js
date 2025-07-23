@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL COM LAYOUT E LÓGICA DE DOCUMENTOS AJUSTADOS
+// api/generate-pdf.js - VERSÃO FINAL COM LAYOUT FLUIDO
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -20,15 +20,15 @@ const css = `
     .header-text p { font-family: var(--font-sans); font-weight: 500; margin: 0; line-height: 1.3; font-size: 10pt; letter-spacing: 0.5px; opacity: 0.9; }
     .header-text .comarca { font-size: 12pt; font-weight: 700; opacity: 1; }
     .preview-header h1 { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: white; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); width: 100%; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-    .preview-section { padding: 0 1.5rem; margin-bottom: 0.5rem; page-break-inside: avoid; }
     
-    .pendencies-section { page-break-inside: auto !important; }
+    /* AJUSTE FINAL DE LAYOUT: Permite que seções quebrem entre páginas */
+    .preview-section { padding: 0 1.5rem; margin-bottom: 0.5rem; }
 
     .preview-section h3 { font-family: var(--font-sans); font-size: 1.2rem; font-weight: 600; color: var(--primary-color); padding-bottom: 0.5rem; margin: 1rem 0; border-bottom: 2px solid var(--primary-color); page-break-after: avoid; }
     .pendencies-section h3 { color: var(--danger-color); border-bottom-color: var(--danger-color); }
     .pendencies-list { list-style-type: none; padding-left: 0; margin: 0; }
     .pendencies-list li { background-color: rgba(192, 57, 43, 0.05); padding: 0.75rem 1rem; border-left: 3px solid var(--danger-color); margin-bottom: 0.5rem !important; border-radius: 4px; font-family: var(--font-sans); font-size: 10pt; }
-    .preview-section h4 { font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: #444; margin-top: 1rem; margin-bottom: 1rem; padding-bottom: 0.25rem; border-bottom: 1px solid #eee; }
+    .preview-section h4 { font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: #444; margin-top: 1rem; margin-bottom: 1rem; padding-bottom: 0.25rem; border-bottom: 1px solid #eee; page-break-after: avoid; }
     .preview-card, .preview-card-small { page-break-inside: avoid; background-color: #fff; border: 1px solid #e0e0e0; padding: 1.25rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
     .preview-card p, .preview-card-small p { margin-bottom: 0.75rem; line-height: 1.6; font-size: 11pt; display: flex; align-items: flex-start; }
     .preview-card p:last-child, .preview-card-small p:last-child { margin-bottom: 0; }
