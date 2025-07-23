@@ -492,29 +492,50 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
     .preview-panel { padding: 1.5rem; }
 }
 
-/* --- REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF --- */
+/* --- REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF (VERSÃO FINAL) --- */
 
+/* Força a impressão de cores e fundos */
 @media print {
-    /* Garante que o fundo seja impresso, redundante com a opção do puppeteer mas bom ter */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
-/* Evita quebras de página dentro destes elementos */
+/* Define um "corpo" de página para impressão, garantindo margens
+  e um comportamento mais previsível.
+*/
+@page {
+  margin: 1.5cm;
+}
+
+/* Evita quebras de página DENTRO da maioria dos elementos.
+  Isso mantém os blocos de informação sempre juntos.
+*/
 .preview-card,
 .preview-card-small,
+.preview-sub-card,
 .preview-section {
-    page-break-inside: avoid;
+  page-break-inside: avoid;
 }
 
-/* Tenta evitar que uma quebra de página aconteça ANTES de um título de seção */
+/* Regra mais inteligente para títulos.
+  Sempre tenta manter o título junto com o conteúdo que vem DEPOIS dele.
+*/
 .preview-section h3,
 .preview-section h4 {
-    page-break-before: auto; /* O padrão, mas podemos mudar se necessário */
-    page-break-after: avoid;  /* Tenta manter o conteúdo junto com o título */
+  page-break-after: avoid;
 }
 
-/* Garante que a assinatura e o rodapé fiquem juntos */
+/* Regra aprimorada para o rodapé.
+  Apenas força uma nova página se for estritamente necessário,
+  e garante que ele tenha espaço para "respirar".
+*/
 .preview-footer {
-    page-break-before: always; /* Força o rodapé a começar em uma nova página, se necessário, para não quebrar */
+  page-break-before: auto; /* Deixa o navegador decidir */
+  padding-top: 2rem;       /* Adiciona um respiro acima da assinatura */
+}
+
+/* Remove a sombra dos cards no PDF para um visual mais limpo */
+.preview-panel {
+    box-shadow: none;
+    border: none;
 }
