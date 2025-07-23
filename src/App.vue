@@ -339,13 +339,16 @@ export default {
         console.log("Enviando dados para o servidor de PDF...");
         this.isLoading = true;
         try {
-            // A URL da API é lida das variáveis de ambiente do Vite
-            const apiUrl = import.meta.env.VITE_API_URL;
+            // CORREÇÃO: Define a URL da API de forma robusta.
+            // Em produção (Vercel), usamos um caminho relativo que sempre funciona.
+            // Em desenvolvimento, usamos a variável de ambiente para flexibilidade.
+            const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
+
             if (!apiUrl) {
-                throw new Error("A URL da API não está configurada. Verifique o arquivo .env");
+                throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento. Crie um arquivo .env e defina VITE_API_URL (ex: http://localhost:3000/api/generate-pdf).");
             }
 
-            const response = await fetch(apiUrl, { // A URL completa já inclui /api/generate-pdf
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -356,6 +359,9 @@ export default {
             });
 
             if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error(`Erro 404: A rota da API (${apiUrl}) não foi encontrada. Verifique se o arquivo da API está na pasta /api e se o deploy foi concluído com sucesso.`);
+                }
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
                 throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
             }
