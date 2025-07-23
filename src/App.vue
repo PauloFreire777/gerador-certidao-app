@@ -76,12 +76,12 @@ export default {
 
       // Falecidos
       falecidos.forEach(f => {
-        if (f.nome && !f.documentos) items.push(`ID dos Documentos Pessoais de ${f.nome} pendente.`);
+        if (f.nome && !f.documentos) items.push(`Documentos Pessoais de ${f.nome} pendentes.`);
       });
 
       // Inventariante
       if (inventariante.nome) {
-          if (!inventariante.documentos) items.push('ID dos Documentos Pessoais do Inventariante pendente.');
+          if (!inventariante.documentos) items.push('Documentos Pessoais do Inventariante pendentes.');
           if (!inventariante.idProcuracao) items.push('Procuração do Inventariante pendente.');
       }
 
@@ -89,7 +89,7 @@ export default {
       const checkHerdeiro = (heir, path) => {
         if (!heir.nome || heir.nome.trim() === '') return;
 
-        if (!heir.documentos) items.push(`ID dos Documentos Pessoais de ${path} pendente.`);
+        if (!heir.documentos) items.push(`Documentos Pessoais de ${path} pendentes.`);
         
         if (heir.estado === 'Capaz' && !heir.idProcuracao) {
           items.push(`Procuração de ${path} pendente.`);
@@ -115,7 +115,7 @@ export default {
         if (!cessao.idEscritura) items.push('ID da Escritura de Cessão de Direitos pendente.');
         cessao.cessionarios.forEach((c, i) => {
           if (!c.nome) items.push(`Nome do Cessionário ${i+1} pendente.`);
-          if (!c.documentos) items.push(`ID dos Documentos do Cessionário ${c.nome || i+1} pendente.`);
+          if (!c.documentos) items.push(`Documentos Pessoais do Cessionário ${c.nome || i+1} pendentes.`);
           if (!c.idProcuracao) items.push(`Procuração do Cessionário ${c.nome || i+1} pendente.`);
         });
       }
