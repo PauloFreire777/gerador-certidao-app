@@ -1,11 +1,9 @@
-// api/generate-pdf.js - VERSÃO COM CSS EMBUTIDO E ROBUSTA
+// api/generate-pdf.js - VERSÃO FINAL COM CABEÇALHOS CORRIGIDOS
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
 // --- ESTILOS CSS EMBUTIDOS ---
-// Para evitar erros de "arquivo não encontrado" no ambiente serverless,
-// o conteúdo de main.css foi movido para dentro deste arquivo.
 const css = `
     :root {
         --primary-color: #2c3e50; --accent-color: #f39c12; --accent-color-hover: #e67e22;
@@ -132,9 +130,12 @@ export default async function handler(req, res) {
             `,
         });
         
+        // --- CORREÇÃO FINAL ---
+        // Adiciona os cabeçalhos corretos para garantir a integridade do arquivo
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'inline; filename="Certidao-PRO.pdf"');
-        res.status(200).send(pdfBuffer); 
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.setHeader('Content-Disposition', 'attachment; filename="Certidao-PRO.pdf"'); // Força o download
+        res.status(200).end(pdfBuffer); // Envia o buffer e finaliza a resposta
         
     } catch (error) {
         console.error('Ocorreu um erro ao gerar o PDF:', error);
