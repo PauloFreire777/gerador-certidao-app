@@ -73,7 +73,7 @@
             <input type="text" v-model="heir.curador.idProcuracao">
         </div>
         <div class="form-group" v-if="advogados.length > 0">
-            <label>Advogado que representa o Curador</label>
+            <label>Advogado que representa o Curatelado</label>
             <select v-model="heir.curador.advogadoId">
                 <option value="">Selecione um advogado</option>
                 <option v-for="adv in advogados" :key="adv.id" :value="adv.id">

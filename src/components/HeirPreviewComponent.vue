@@ -19,7 +19,7 @@
         <p><strong>Curador(a):</strong> <span>{{ h.curador.nome || 'Não informado' }}</span></p>
         <p><strong>Termo de Curador (ID):</strong> <span>{{ h.curador.idTermo || 'Não informado' }}</span></p>
         <div v-if="h.curador.advogadoId" class="info-advogado">
-          <p><strong>Advogado(a) do Curador:</strong> <span>{{ getAdvogadoNomeById(h.curador.advogadoId) }}</span></p>
+          <p><strong>Advogado(a) do Curatelado:</strong> <span>{{ getAdvogadoNomeById(h.curador.advogadoId) }}</span></p>
         </div>
     </div>
 
