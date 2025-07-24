@@ -1,4 +1,4 @@
-// Arquivo: src/utils/stateHelpers.js - VERSÃO CORRIGIDA E COMPLETA
+// Arquivo: src/utils/stateHelpers.js - VERSÃO CORRIGIDA
 
 // Função para criar um novo advogado
 export const createAdvogadoObject = () => ({
@@ -37,7 +37,8 @@ export const createCessionarioObject = () => ({
     id: crypto.randomUUID(),
     nome: '',
     documentos: '',
-    idProcuracao: ''
+    idProcuracao: '',
+    advogadoId: '' // NOVO CAMPO
 });
 
 // Função para criar um estado inicial limpo
@@ -74,7 +75,7 @@ export const createInitialState = () => ({
         outrosBens: [],
         valoresResiduais: [],
         dividas: [],
-        houvePedidoAlvara: false, // NOVO CAMPO DE CONTROLE
+        houvePedidoAlvara: false,
         alvaras: []
     },
     documentosProcessuais: {
@@ -117,72 +118,10 @@ export const createObservacao = () => ({
 });
 
 // --- FUNÇÕES DE CRIAÇÃO DE BENS ---
-
-export const createImovel = () => ({
-    id: crypto.randomUUID(),
-    descricao: '',
-    matricula: '',
-    tipo: 'Urbano',
-    avaliado: false,
-    idAvaliacao: '',
-    idMatricula: '',
-    iptu: { determinado: false, id: '' },
-    itr: { determinado: false, id: '' },
-    ccir: { determinado: false, id: '' },
-    car: { determinado: false, id: '' }
-});
-
-export const createVeiculo = () => ({
-    id: crypto.randomUUID(),
-    descricao: '',
-    placa: '',
-    renavam: '',
-    avaliado: false,
-    idAvaliacao: '',
-    idCRLV: ''
-});
-
-export const createSemovente = () => ({
-    id: crypto.randomUUID(),
-    descricao: '',
-    quantidade: '',
-    valor: '',
-    avaliado: false,
-    idAvaliacao: '',
-    idDocumento: ''
-});
-
-export const createOutroBem = () => ({
-    id: crypto.randomUUID(),
-    descricao: '',
-    quantidade: '',
-    valor: '',
-    avaliado: false,
-    idAvaliacao: '',
-    idDocumento: ''
-});
-
-export const createValorResidual = () => ({
-    id: crypto.randomUUID(),
-    tipo: 'Conta Bancária',
-    instituicao: '',
-    valor: '',
-    idDocumento: ''
-});
-
-export const createDivida = () => ({
-    id: crypto.randomUUID(),
-    credor: '',
-    tipo: 'Tributária',
-    valor: '',
-    idDocumento: ''
-});
-
-export const createAlvara = () => ({
-    id: crypto.randomUUID(),
-    finalidade: '',
-    idRequerimento: '',
-    statusDeferimento: 'Pendente', // Opções: Pendente, Deferido, Indeferido
-    idExpedicao: '',
-    prestouContas: 'Não aplicável' // Opções: Não aplicável, Sim, Não, Pendente
-});
+export const createImovel = () => ({ id: crypto.randomUUID(), descricao: '', matricula: '', tipo: 'Urbano', avaliado: false, idAvaliacao: '', idMatricula: '', iptu: { determinado: false, id: '' }, itr: { determinado: false, id: '' }, ccir: { determinado: false, id: '' }, car: { determinado: false, id: '' } });
+export const createVeiculo = () => ({ id: crypto.randomUUID(), descricao: '', placa: '', renavam: '', avaliado: false, idAvaliacao: '', idCRLV: '' });
+export const createSemovente = () => ({ id: crypto.randomUUID(), descricao: '', quantidade: '', valor: '', avaliado: false, idAvaliacao: '', idDocumento: '' });
+export const createOutroBem = () => ({ id: crypto.randomUUID(), descricao: '', quantidade: '', valor: '', avaliado: false, idAvaliacao: '', idDocumento: '' });
+export const createValorResidual = () => ({ id: crypto.randomUUID(), tipo: 'Conta Bancária', instituicao: '', valor: '', idDocumento: '' });
+export const createDivida = () => ({ id: crypto.randomUUID(), credor: '', tipo: 'Tributária', valor: '', idDocumento: '' });
+export const createAlvara = () => ({ id: crypto.randomUUID(), finalidade: '', idRequerimento: '', statusDeferimento: 'Pendente', idExpedicao: '', prestouContas: 'Não aplicável' });

@@ -4,29 +4,19 @@ import { createIcons, icons } from 'lucide';
 import HeirFormComponent from './components/HeirFormComponent.vue';
 import HeirPreviewComponent from './components/HeirPreviewComponent.vue';
 import { 
-    createInitialState, 
-    createHeirObject, 
-    createCessionarioObject, 
-    createFalecido, 
-    createObservacao,
-    createAdvogadoObject,
-    createImovel,
-    createVeiculo,
-    createSemovente,
-    createOutroBem,
-    createValorResidual,
-    createDivida,
-    createAlvara
+    createInitialState, createHeirObject, createCessionarioObject, createFalecido, createObservacao,
+    createAdvogadoObject, createImovel, createVeiculo, createSemovente, createOutroBem,
+    createValorResidual, createDivida, createAlvara
 } from './utils/stateHelpers.js';
 
 // 2. DEFINIÇÃO DO COMPONENTE
 export default {
-
+  
   components: {
     'heir-form-group': HeirFormComponent,
     'heir-preview-group': HeirPreviewComponent
   },
-
+  
   data() {
     return {
       state: createInitialState(),
@@ -39,52 +29,17 @@ export default {
       showAutosaveIndicator: false,
       theme: 'light',
       bensSections: [
-        { 
-            key: 'imoveis', 
-            title: 'Bens Imóveis', 
-            singular: 'Imóvel', 
-            createFunction: createImovel,
-        },
-        { 
-            key: 'veiculos', 
-            title: 'Veículos', 
-            singular: 'Veículo',
-            createFunction: createVeiculo,
-        },
-        { 
-            key: 'semoventes', 
-            title: 'Semoventes', 
-            singular: 'Semovente',
-            createFunction: createSemovente,
-        },
-        { 
-            key: 'outrosBens', 
-            title: 'Outros Bens', 
-            singular: 'Bem',
-            createFunction: createOutroBem,
-        },
-        { 
-            key: 'valoresResiduais', 
-            title: 'Valores Residuais', 
-            singular: 'Valor', 
-            createFunction: createValorResidual,
-        },
-        { 
-            key: 'dividas', 
-            title: 'Dívidas do Espólio', 
-            singular: 'Dívida', 
-            createFunction: createDivida,
-        },
-        { 
-            key: 'alvaras', 
-            title: 'Alvarás', 
-            singular: 'Alvará', 
-            createFunction: createAlvara,
-        }
+        { key: 'imoveis', title: 'Bens Imóveis', singular: 'Imóvel', createFunction: createImovel },
+        { key: 'veiculos', title: 'Veículos', singular: 'Veículo', createFunction: createVeiculo },
+        { key: 'semoventes', title: 'Semoventes', singular: 'Semovente', createFunction: createSemovente },
+        { key: 'outrosBens', title: 'Outros Bens', singular: 'Bem', createFunction: createOutroBem },
+        { key: 'valoresResiduais', title: 'Valores Residuais', singular: 'Valor', createFunction: createValorResidual },
+        { key: 'dividas', title: 'Dívidas do Espólio', singular: 'Dívida', createFunction: createDivida },
+        { key: 'alvaras', title: 'Alvarás', singular: 'Alvará', createFunction: createAlvara }
       ]
     };
   },
-
+  
   computed: {
     hasIncapaz() {
       const checkIncapaz = (heirs) => {
@@ -96,7 +51,7 @@ export default {
     hasBens() {
       return Object.values(this.state.bens).some(arr => Array.isArray(arr) ? arr.length > 0 : false);
     },
-   
+  
     pendencies() {
       const items = [];
       const { falecidos, inventariante, herdeiros, documentacaoTributaria, bens, documentosProcessuais, cessao, renuncia, custas } = this.state;
@@ -114,7 +69,7 @@ export default {
           if (!inventariante.idTermoCompromisso) items.push('Termo de Compromisso do Inventariante não juntado.');
       }
 
-      // Herdeiros (recursivo)
+      // Herdeiros
       const checkHerdeiro = (heir, path) => {
         if (!heir.nome || heir.nome.trim() === '') return;
         if (!heir.documentos) items.push(`Documentos pessoais de ${path} não juntados.`);
@@ -127,41 +82,37 @@ export default {
       herdeiros.forEach((h, i) => checkHerdeiro(h, `Herdeiro ${i+1} (${h.nome || 'sem nome'})`));
 
       // Cessão e Renúncia
-      if (cessao.houveCessao && !cessao.idEscritura) items.push('Escritura de Cessão de Direitos não juntada.');
+      if (cessao.houveCessao) {
+          if (!cessao.idEscritura) items.push('Escritura de Cessão de Direitos não juntada.');
+          cessao.cessionarios.forEach((c, i) => {
+            if (!c.documentos) items.push(`Documentos pessoais do Cessionário ${c.nome || i + 1} não juntados.`);
+            if (!c.idProcuracao) items.push(`Procuração do Cessionário ${c.nome || i + 1} não juntada.`);
+          });
+      }
       if (renuncia.houveRenuncia && renuncia.renunciantes.some(r => !r.idEscritura)) {
         items.push('Escritura/Termo de Renúncia não juntado para um ou mais renunciantes.');
       }
       
-      // Pendências de Bens
-    
-      bens.imoveis.forEach((bem, i) => {
-        const nome = bem.descricao || `Imóvel ${i+1}`;
-        if (!bem.idMatricula) items.push(`Matrícula do ${nome} não juntada.`);
-        if (this.hasIncapaz && bem.avaliado && !bem.idAvaliacao) items.push(`Avaliação Judicial do ${nome} não juntada.`);
-        if (bem.tipo === 'Urbano' && bem.iptu.determinado && !bem.iptu.id) items.push(`IPTU do ${nome} não juntado.`);
-        if (bem.tipo === 'Rural') {
-          if (bem.itr.determinado && !bem.itr.id) items.push(`ITR do ${nome} não juntado.`);
-          if (bem.ccir.determinado && !bem.ccir.id) items.push(`CCIR do ${nome} não juntado.`);
-          if (bem.car.determinado && !bem.car.id) items.push(`CAR do ${nome} não juntado.`);
-        }
-      });
-     
-      bens.veiculos.forEach((bem, i) => {
-        const nome = bem.descricao || `Veículo ${i+1}`;
-        if (!bem.idCRLV) items.push(`CRLV do ${nome} não juntado.`);
-        if (this.hasIncapaz && bem.avaliado && !bem.idAvaliacao) items.push(`Avaliação Judicial do ${nome} não juntada.`);
-      });
-      
-      bens.semoventes.forEach((bem, i) => {
-        const nome = bem.descricao || `Semovente ${i+1}`;
-        if (!bem.idDocumento) items.push(`Documento do ${nome} não juntado.`);
-        if (this.hasIncapaz && bem.avaliado && !bem.idAvaliacao) items.push(`Avaliação Judicial do ${nome} não juntada.`);
-      });
-     
-      bens.outrosBens.forEach((bem, i) => {
-        const nome = bem.descricao || `Bem ${i+1}`;
-        if (!bem.idDocumento) items.push(`Documento do ${nome} não juntado.`);
-        if (this.hasIncapaz && bem.avaliado && !bem.idAvaliacao) items.push(`Avaliação Judicial do ${nome} não juntada.`);
+      // Bens
+      ['imoveis', 'veiculos', 'semoventes', 'outrosBens'].forEach(tipoBem => {
+          bens[tipoBem].forEach((bem, i) => {
+              const nome = bem.descricao || `${tipoBem.charAt(0).toUpperCase() + tipoBem.slice(1, -1)} ${i+1}`;
+              if (this.hasIncapaz && !(bem.avaliado && bem.idAvaliacao)) {
+                  items.push(`Avaliação judicial de "${nome}" pendente.`);
+              }
+              if (tipoBem === 'imoveis' && !bem.idMatricula) items.push(`Matrícula de "${nome}" não juntada.`);
+              if (tipoBem === 'veiculos' && !bem.idCRLV) items.push(`CRLV de "${nome}" não juntado.`);
+              if ((tipoBem === 'semoventes' || tipoBem === 'outrosBens') && !bem.idDocumento) items.push(`Documento de "${nome}" não juntado.`);
+
+              if (tipoBem === 'imoveis') {
+                if (bem.tipo === 'Urbano' && bem.iptu.determinado && !bem.iptu.id) items.push(`IPTU de "${nome}" não juntado.`);
+                if (bem.tipo === 'Rural') {
+                  if (bem.itr.determinado && !bem.itr.id) items.push(`ITR de "${nome}" não juntado.`);
+                  if (bem.ccir.determinado && !bem.ccir.id) items.push(`CCIR de "${nome}" não juntado.`);
+                  if (bem.car.determinado && !bem.car.id) items.push(`CAR de "${nome}" não juntado.`);
+                }
+              }
+          });
       });
       bens.valoresResiduais.forEach((bem, i) => {
         const nome = bem.tipo || `Valor Residual ${i+1}`;
@@ -172,37 +123,35 @@ export default {
         if (!bem.idDocumento) items.push(`Documento comprobatório da dívida com ${nome} não juntado.`);
       });
       if (bens.houvePedidoAlvara) {
+          if (bens.alvaras.length === 0) {
+              items.push('Nenhum detalhe de alvará foi adicionado, embora o pedido tenha sido marcado.');
+          }
           bens.alvaras.forEach((alvara, i) => {
             const nome = alvara.finalidade || `Alvará ${i+1}`;
-            if (alvara.idRequerimento) {
-              if (alvara.statusDeferimento === 'Pendente') {
-                items.push(`Análise do pedido de alvará para "${nome}" pendente.`);
-              }
-              if (alvara.statusDeferimento === 'Deferido' && !alvara.idExpedicao) {
-                items.push(`Expedição do alvará deferido para "${nome}" pendente.`);
-              }
-              if (alvara.idExpedicao && alvara.prestouContas === 'Pendente') {
-                items.push(`Prestação de contas do alvará para "${nome}" pendente.`);
-              }
-            } else {
-              items.push(`ID do requerimento de alvará para "${nome}" pendente.`);
-            }
+            if (alvara.statusDeferimento === 'Pendente') items.push(`Análise do pedido de alvará para "${nome}" pendente.`);
+            if (alvara.statusDeferimento === 'Deferido' && !alvara.idExpedicao) items.push(`Alvará para "${nome}" deferido, mas expedição pendente.`);
+            if (alvara.idExpedicao && alvara.prestouContas === 'Pendente') items.push(`Prestação de contas do alvará para "${nome}" pendente.`);
           });
       }
 
-      // Documentos Processuais
+      // Docs Processuais
       if (documentosProcessuais.primeirasDeclaracoes.status === 'Não Apresentada') items.push('Primeiras Declarações não apresentadas.');
+      if (documentosProcessuais.ultimasDeclaracoes.status === 'Não Apresentada') items.push('Últimas Declarações não apresentadas.');
+      if (documentosProcessuais.edital.determinado === 'Sim' && documentosProcessuais.edital.status === 'Não Expedido') items.push('Expedição do Edital determinada, mas pendente.');
+      if (documentosProcessuais.edital.status === 'Expedido' && documentosProcessuais.edital.prazoDecorrido === 'Não') items.push('Decurso de prazo do Edital pendente de certificação.');
       if (this.hasIncapaz && documentosProcessuais.manifestacaoMP.status === 'Não Manifestado') items.push('Manifestação do Ministério Público pendente.');
       documentosProcessuais.testamentosCensec.forEach(item => { if (!item.id) { const docType = item.deixouTestamento ? 'Testamento' : 'Certidão CENSEC'; items.push(`${docType} de ${item.nomeFalecido || 'falecido sem nome'} não juntada.`); } });
-      
+      if (documentosProcessuais.sentenca.status === 'Não Proferida') items.push('Sentença homologatória pendente de ser proferida.');
+      if (documentosProcessuais.sentenca.status === 'Proferida' && documentosProcessuais.transito.status === 'Não Ocorrido') items.push('Trânsito em julgado da sentença pendente de certificação.');
+
       // Tributos e Custas
       documentacaoTributaria.forEach(trib => { if (trib.cndMunicipal.status === 'Não Juntada') items.push(`CND Municipal de ${trib.nomeFalecido} não juntada.`); if (trib.cndEstadual.status === 'Não Juntada') items.push(`CND Estadual de ${trib.nomeFalecido} não juntada.`); if (trib.cndFederal.status === 'Não Juntada') items.push(`CND Federal de ${trib.nomeFalecido} não juntada.`); });
       if (custas.situacao === 'Devidas') { if (custas.calculada === 'Não') items.push('Cálculo das custas processuais pendente.'); if (custas.paga === 'Não') items.push('Pagamento das custas processuais pendente.'); }
 
-      return items;
+      return [...new Set(items)]; // Remove duplicados
     }
   },
-
+  
   watch: {
     state: {
       handler(newState) { this.saveStateToLocalStorage(newState); },
@@ -210,7 +159,7 @@ export default {
     },
     'state.falecidos': {
       handler(newFalecidos) {
-      
+  
         const newTributos = newFalecidos.map(f => {
           const existing = this.state.documentacaoTributaria.find(t => t.falecidoId === f.id);
           if (existing) {
@@ -227,7 +176,7 @@ export default {
           };
         });
         this.state.documentacaoTributaria = newTributos.filter(t => newFalecidos.some(f => f.id === t.falecidoId));
-       
+  
         const newTestamentos = newFalecidos.map(f => {
           const existing = this.state.documentosProcessuais.testamentosCensec.find(t => t.falecidoId === f.id);
           if (existing) {
@@ -249,7 +198,7 @@ export default {
     },
     'hasIncapaz': {
       handler(newVal) {
-       
+  
         this.state.documentosProcessuais.manifestacaoMP.necessaria = newVal;
       },
       immediate: true
@@ -276,7 +225,7 @@ export default {
         const section = this.bensSections.find(s => s.key === sectionKey);
         if (section && section.createFunction) {
             this.state.bens[sectionKey].push(section.createFunction());
-       
+  
         }
     },
     removeBem(sectionKey, index) { this.state.bens[sectionKey].splice(index, 1); },
@@ -330,7 +279,7 @@ export default {
     },
     hydrateState(loadedState) {
         const freshState = createInitialState();
-      
+  
         if (!freshState.processo.advogados) {
           freshState.processo.advogados = [];
         }
@@ -344,7 +293,7 @@ export default {
                     }
                 }
             }
-           
+  
             for (const key in source) {
                 if (typeof target[key] === 'undefined') {
                     target[key] = source[key];
@@ -399,27 +348,27 @@ export default {
         this.isLoading = true;
         try {
             const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
-          
+  
             if (!apiUrl) {
                 throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento.");
             }
-           
+  
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     state: this.state,
-                   
+  
                     pendencies: this.pendencies
                 }),
             });
-           
+  
             if (!response.ok) {
-            
+  
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
                 throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
             }
-          
+  
             const pdfBlob = await response.blob();
             const url = window.URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
@@ -429,7 +378,7 @@ export default {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-      
+  
         } catch (error) {
             console.error("Erro ao gerar o PDF:", error);
             alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
@@ -471,24 +420,24 @@ export default {
         return 'Situação não informada.';
     },
   },
-
+  
   mounted() {
     this.loadStateFromLocalStorage();
     const savedTheme = localStorage.getItem('certidaoTheme') || 'light';
     this.theme = savedTheme;
     document.documentElement.setAttribute('data-theme', this.theme);
-   
+  
     this.$nextTick(() => {
       createIcons({ icons }); 
     });
-   
+  
     setInterval(() => {
       this.saveStateToLocalStorage(this.state);
       this.showAutosaveIndicator = true;
       setTimeout(() => { this.showAutosaveIndicator = false; }, 2000);
     }, 30000);
   },
-
+  
   updated() {
    
     this.$nextTick(() => {
@@ -536,7 +485,7 @@ export default {
                             <input type="checkbox" id="cumulativo" v-model="state.processo.cumulativo">
                             <label for="cumulativo">Inventário Cumulativo</label>
                         </div>
-                        
+                    
                         <fieldset>
                             <legend>Advogados do Processo</legend>
                             <div v-for="(advogado, index) in state.processo.advogados" :key="advogado.id" class="dynamic-card">
@@ -554,7 +503,7 @@ export default {
                             </div>
                             <button @click="addAdvogado" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Advogado</button>
                         </fieldset>
-                        
+                    
                         <fieldset>
                             <legend>Responsável pela Certidão</legend>
                             <div class="form-group">
@@ -691,17 +640,27 @@ export default {
                                     <div class="form-group"><label>Nome do Cessionário</label><input type="text" v-model="cessionario.nome"></div>
                                     <div class="form-group"><label>ID dos Documentos do Cessionário</label><input type="text" v-model="cessionario.documentos"></div>
                                     <div class="form-group"><label>ID da Procuração do Cessionário</label><input type="text" v-model="cessionario.idProcuracao"></div>
+                                    <div class="form-group" v-if="state.processo.advogados.length > 0">
+                                        <label>Advogado do Cessionário</label>
+                                        <select v-model="cessionario.advogadoId">
+                                            <option value="">Selecione um advogado</option>
+                                            <option v-for="adv in state.processo.advogados" :key="adv.id" :value="adv.id">
+                                                {{ adv.nome }} - OAB: {{ adv.oab }}
+                                            </option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <button @click="addCessionario" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Cessionário</button>
                             </div>
                         </fieldset>
                     </div>
-                   
+                    
                     <div v-show="activeTab === 4" class="tab-pane">
                         <h2>5. Bens, Valores e Dívidas</h2>
                         
                         <fieldset>
                             <legend>Bens Imóveis</legend>
+                            <div v-if="!state.bens.imoveis.length" class="no-items-message">Nenhum bem imóvel adicionado.</div>
                             <div v-for="(item, index) in state.bens.imoveis" :key="item.id" class="dynamic-card">
                                 <button @click="removeBem('imoveis', index)" class="btn-remove" title="Remover Imóvel">×</button>
                                 <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Ex: Lote 1, Quadra 2..."></div>
@@ -723,8 +682,8 @@ export default {
                                     <div v-if="item.car.determinado" class="form-group"><label>ID do CAR</label><input type="text" v-model="item.car.id" placeholder="ID do documento"></div>
                                 </div>
                                 <div v-if="hasIncapaz" class="conditional-section warning">
-                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_imoveis_${index}`" v-model="item.avaliado"><label :for="`avaliado_imoveis_${index}`">Avaliado Judicialmente</label></div>
-                                    <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do documento"></div>
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_imoveis_${index}`" v-model="item.avaliado"><label :for="`avaliado_imoveis_${index}`">Foi avaliado judicialmente?</label></div>
+                                    <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do laudo"></div>
                                 </div>
                             </div>
                             <button @click="addBem('imoveis')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Imóvel</button>
@@ -732,6 +691,7 @@ export default {
 
                         <fieldset>
                             <legend>Veículos</legend>
+                            <div v-if="!state.bens.veiculos.length" class="no-items-message">Nenhum veículo adicionado.</div>
                             <div v-for="(item, index) in state.bens.veiculos" :key="item.id" class="dynamic-card">
                                 <button @click="removeBem('veiculos', index)" class="btn-remove" title="Remover Veículo">×</button>
                                 <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Marca, modelo, ano..."></div>
@@ -741,7 +701,7 @@ export default {
                                 </div>
                                 <div class="form-group"><label>ID do CRLV <span class="required">*</span></label><input type="text" v-model="item.idCRLV" placeholder="ID do documento"></div>
                                 <div v-if="hasIncapaz" class="conditional-section warning">
-                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_veiculos_${index}`" v-model="item.avaliado"><label :for="`avaliado_veiculos_${index}`">Avaliado Judicialmente</label></div>
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_veiculos_${index}`" v-model="item.avaliado"><label :for="`avaliado_veiculos_${index}`">Foi avaliado judicialmente?</label></div>
                                     <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do laudo"></div>
                                 </div>
                             </div>
@@ -749,7 +709,23 @@ export default {
                         </fieldset>
 
                         <fieldset>
+                            <legend>Semoventes</legend>
+                            <div v-if="!state.bens.semoventes.length" class="no-items-message">Nenhum semovente adicionado.</div>
+                            <div v-for="(item, index) in state.bens.semoventes" :key="item.id" class="dynamic-card">
+                                <button @click="removeBem('semoventes', index)" class="btn-remove" title="Remover Semovente">×</button>
+                                <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Ex: Gado bovino, equinos..."></div>
+                                <div class="form-group"><label>ID do Documento Comprobatório</label><input type="text" v-model="item.idDocumento" placeholder="ID da nota, registro, etc."></div>
+                                <div v-if="hasIncapaz" class="conditional-section warning">
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_semoventes_${index}`" v-model="item.avaliado"><label :for="`avaliado_semoventes_${index}`">Foi avaliado judicialmente?</label></div>
+                                    <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do laudo"></div>
+                                </div>
+                            </div>
+                            <button @click="addBem('semoventes')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Semovente</button>
+                        </fieldset>
+                        
+                        <fieldset>
                             <legend>Valores Residuais</legend>
+                             <div v-if="!state.bens.valoresResiduais.length" class="no-items-message">Nenhum valor residual adicionado.</div>
                              <div v-for="(item, index) in state.bens.valoresResiduais" :key="item.id" class="dynamic-card">
                                 <button @click="removeBem('valoresResiduais', index)" class="btn-remove" title="Remover Valor">×</button>
                                 <div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Conta Bancária</option><option>FGTS</option><option>PIS/PASEP</option><option>Ações</option></select></div>
@@ -762,6 +738,7 @@ export default {
 
                         <fieldset>
                             <legend>Dívidas do Espólio</legend>
+                            <div v-if="!state.bens.dividas.length" class="no-items-message">Nenhuma dívida adicionada.</div>
                             <div v-for="(item, index) in state.bens.dividas" :key="item.id" class="dynamic-card">
                                 <button @click="removeBem('dividas', index)" class="btn-remove" title="Remover Dívida">×</button>
                                 <div class="form-group"><label>Credor</label><input type="text" v-model="item.credor"></div>
@@ -779,6 +756,7 @@ export default {
                                 <label for="houvePedidoAlvara">Houve pedido de alvará no processo?</label>
                             </div>
                             <div v-if="state.bens.houvePedidoAlvara" class="conditional-section">
+                                <div v-if="!state.bens.alvaras.length" class="no-items-message">Nenhum detalhe de alvará adicionado.</div>
                                 <div v-for="(item, index) in state.bens.alvaras" :key="item.id" class="dynamic-card">
                                     <button @click="removeBem('alvaras', index)" class="btn-remove" title="Remover Alvará">×</button>
                                     <div class="form-group"><label>Finalidade do Alvará</label><input type="text" v-model="item.finalidade" placeholder="Ex: Venda de veículo, levantamento de valores"></div>
@@ -791,13 +769,13 @@ export default {
                                 </div>
                                 <button @click="addBem('alvaras')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Alvará</button>
                             </div>
-                        
+                    
                         </fieldset>
                     </div>
 
                     <div v-show="activeTab === 5" class="tab-pane">
                         <h2>6. Documentos Processuais</h2>
-                        
+           
                         <div class="docs-process-container">
                             <div class="doc-card">
                                 <h4><i data-lucide="file-text"></i> Primeiras Declarações</h4>
@@ -835,7 +813,7 @@ export default {
                                     </div>
                                 </div>
                             </div>
-                            
+           
                             <div v-if="hasIncapaz" class="doc-card">
                                 <h4><i data-lucide="scale"></i> Manifestação do Ministério Público</h4>
                                 <div class="doc-content">
@@ -918,11 +896,12 @@ export default {
                         <h3><i data-lucide="alert-triangle"></i> PENDÊNCIAS</h3>
                         <ul class="pendencies-list"><li v-for="(pendency, index) in pendencies" :key="index">{{ pendency }}</li></ul>
                     </div>
-                    
+           
                     <div class="preview-section" v-if="state.processo.numero">
                         <h3><i data-lucide="folder-kanban"></i> 1. Dados do Processo</h3>
                         <div class="preview-card">
                             <p><strong>Número do Processo:</strong><span>{{ state.processo.numero }}</span></p>
+                            <p v-if="state.processo.cumulativo"><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>
                             <div v-if="state.processo.advogados.length" class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados no Processo:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;"><li v-for="adv in state.processo.advogados" :key="adv.id"><span>- {{ adv.nome }} (OAB: {{ adv.oab }})</span></li></ul></div>
                         </div>
                     </div>
@@ -960,16 +939,40 @@ export default {
                         <h3><i data-lucide="arrow-right-left"></i> Cessão de Direitos</h3>
                         <div class="preview-card">
                             <p><strong>Escritura de Cessão (ID):</strong><span>{{ state.cessao.idEscritura || 'Não informado' }}</span></p>
-                            <div v-for="c in state.cessao.cessionarios" :key="c.id" class="preview-sub-card"><p><strong>Cessionário:</strong><span>{{ c.nome }}</span></p></div>
+                            <div v-for="c in state.cessao.cessionarios" :key="c.id" class="preview-sub-card">
+                                <p><strong>Cessionário:</strong><span>{{ c.nome }}</span></p>
+                                <p><strong>Docs. Pessoais (ID):</strong><span>{{ c.documentos || 'Não informado' }}</span></p>
+                                <div v-if="c.idProcuracao" class="info-procuracao"><p><strong>Procuração (ID):</strong><span>{{ c.idProcuracao }}</span></p></div>
+                                <div v-if="c.advogadoId" class="info-advogado"><p><strong>Advogado(a):</strong><span>{{ getAdvogadoNome(c.advogadoId) }}</span></p></div>
+                            </div>
                         </div>
                     </div>
                     <div class="preview-section" v-if="hasBens">
                         <h3><i data-lucide="gem"></i> Relação de Bens, Direitos e Dívidas</h3>
-                        <div v-if="state.bens.imoveis.length"><h4>Bens Imóveis</h4><div v-for="item in state.bens.imoveis" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Matrícula: {{ item.matricula || 'N/A' }})</span></p><p><strong>ID da Matrícula:</strong> <span>{{ item.idMatricula || 'Pendente' }}</span></p><p v-if="item.tipo === 'Urbano' && item.iptu.determinado"><strong>IPTU:</strong> <span>{{ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }}</span></p><div v-if="item.tipo === 'Rural'"><p v-if="item.itr.determinado"><strong>ITR:</strong> <span>{{ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }}</span></p><p v-if="item.ccir.determinado"><strong>CCIR:</strong> <span>{{ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }}</span></p><p v-if="item.car.determinado"><strong>CAR:</strong> <span>{{ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }}</span></p></div><p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p></div></div>
-                        <div v-if="state.bens.veiculos.length"><h4>Veículos</h4><div v-for="item in state.bens.veiculos" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Placa: {{item.placa || 'N/A'}})</span></p><p><strong>ID do CRLV:</strong> <span>{{ item.idCRLV || 'Pendente' }}</span></p><p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p></div></div>
+                        <div v-if="state.bens.imoveis.length"><h4>Bens Imóveis</h4><div v-for="item in state.bens.imoveis" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Matrícula: {{ item.matricula || 'N/A' }})</span></p><p><strong>ID da Matrícula:</strong> <span>{{ item.idMatricula || 'Pendente' }}</span></p><p v-if="item.tipo === 'Urbano' && item.iptu.determinado"><strong>IPTU:</strong> <span>{{ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }}</span></p><div v-if="item.tipo === 'Rural'"><p v-if="item.itr.determinado"><strong>ITR:</strong> <span>{{ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }}</span></p><p v-if="item.ccir.determinado"><strong>CCIR:</strong> <span>{{ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }}</span></p><p v-if="item.car.determinado"><strong>CAR:</strong> <span>{{ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }}</span></p></div><p v-if="hasIncapaz && !item.idAvaliacao" class="warning-text"><strong>Avaliação Judicial:</strong> <span>Pendente</span></p><p v-if="hasIncapaz && item.idAvaliacao" class="success-text"><strong>Avaliação Judicial:</strong> <span>Realizada (ID: {{ item.idAvaliacao }})</span></p></div></div>
+                        <div v-if="state.bens.veiculos.length"><h4>Veículos</h4><div v-for="item in state.bens.veiculos" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Placa: {{item.placa || 'N/A'}})</span></p><p><strong>ID do CRLV:</strong> <span>{{ item.idCRLV || 'Pendente' }}</span></p><p v-if="hasIncapaz && !item.idAvaliacao" class="warning-text"><strong>Avaliação Judicial:</strong> <span>Pendente</span></p><p v-if="hasIncapaz && item.idAvaliacao" class="success-text"><strong>Avaliação Judicial:</strong> <span>Realizada (ID: {{ item.idAvaliacao }})</span></p></div></div>
+                        <div v-if="state.bens.semoventes.length"><h4>Semoventes</h4><div v-for="item in state.bens.semoventes" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao }}</span></p><p><strong>Doc. (ID):</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p></div></div>
                         <div v-if="state.bens.valoresResiduais.length"><h4>Valores Residuais</h4><div v-for="item in state.bens.valoresResiduais" :key="item.id" class="preview-card-small"><p><strong>Tipo:</strong> <span>{{ item.tipo }}</span></p><p><strong>Doc. (ID):</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p></div></div>
                         <div v-if="state.bens.dividas.length"><h4>Dívidas do Espólio</h4><div v-for="item in state.bens.dividas" :key="item.id" class="preview-card-small"><p><strong>Credor:</strong> <span>{{ item.credor }}</span></p><p><strong>Doc. (ID):</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p></div></div>
                         <div v-if="state.bens.houvePedidoAlvara && state.bens.alvaras.length"><h4>Alvarás</h4><div v-for="item in state.bens.alvaras" :key="item.id" class="preview-card-small"><p><strong>Finalidade:</strong> <span>{{ item.finalidade }}</span></p><p><strong>Requerimento:</strong> <span>{{ item.idRequerimento ? `ID: ${item.idRequerimento}` : 'Não requerido' }}</span></p><p v-if="item.idRequerimento"><strong>Status:</strong> <span>{{ item.statusDeferimento }}</span></p><p v-if="item.statusDeferimento === 'Deferido'"><strong>Expedição:</strong> <span>{{ item.idExpedicao || 'Pendente' }}</span></p><p v-if="item.idExpedicao"><strong>Prestou Contas:</strong> <span>{{ item.prestouContas }}</span></p></div></div>
+                    </div>
+                    <div class="preview-section">
+                        <h3><i data-lucide="file-text"></i> Documentos Processuais</h3>
+                        <div class="preview-card">
+                            <p><strong>Primeiras Declarações:</strong> <span>{{ state.documentosProcessuais.primeirasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${state.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})` : 'Não Apresentada' }}</span></p>
+                            <p><strong>Edital:</strong> <span>{{ getEditalStatus() }}</span></p>
+                            <p><strong>Últimas Declarações:</strong> <span>{{ state.documentosProcessuais.ultimasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${state.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})` : 'Não Apresentada' }}</span></p>
+                            <p v-if="hasIncapaz"><strong>Manifestação do MP:</strong> <span :class="{'warning-text': state.documentosProcessuais.manifestacaoMP.status !== 'Manifestado'}">{{ state.documentosProcessuais.manifestacaoMP.status === 'Manifestado' ? `Manifestado (ID: ${state.documentosProcessuais.manifestacaoMP.id || 'N/A'})` : 'Pendente' }}</span></p>
+                            <p><strong>Sentença:</strong> <span>{{ state.documentosProcessuais.sentenca.status === 'Proferida' ? `Proferida (ID: ${state.documentosProcessuais.sentenca.id || 'N/A'})` : 'Não Proferida' }}</span></p>
+                            <p><strong>Trânsito em Julgado:</strong> <span>{{ state.documentosProcessuais.transito.status === 'Ocorrido' ? `Ocorrido (ID: ${state.documentosProcessuais.transito.id || 'N/A'})` : 'Não Ocorrido' }}</span></p>
+                        </div>
+                    </div>
+                    <div class="preview-section" v-if="state.observacoes.length">
+                        <h3><i data-lucide="message-square-plus"></i> Observações Adicionais</h3>
+                        <div v-for="obs in state.observacoes" :key="obs.id" :class="['preview-card', `obs-${obs.relevancia.toLowerCase()}`]">
+                            <p><strong>{{ obs.titulo || 'Observação' }}</strong></p>
+                            <p class="obs-content"><span>{{ obs.conteudo }}</span></p>
+                        </div>
                     </div>
                 </div>
                 <div class="preview-footer">
