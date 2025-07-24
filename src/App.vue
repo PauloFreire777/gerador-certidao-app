@@ -1298,3 +1298,7 @@ export default {
     </div>
   </div>
 </template>
+
+<style>
+/* style global do projeto está no main.css */
+</style>
