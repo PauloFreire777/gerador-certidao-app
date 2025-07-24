@@ -1,4 +1,4 @@
-// Arquivo: src/utils/stateHelpers.js - VERSÃO FINAL
+// Arquivo: src/utils/stateHelpers.js - VERSÃO FASE 2
 
 // Função para criar um novo advogado
 export const createAdvogadoObject = () => ({
@@ -17,18 +17,18 @@ export const createHeirObject = () => ({
     estadoCivil: 'Solteiro(a)',
     isMeeiro: false,
     idProcuracao: '',
-    advogadoId: '', // ID do advogado que representa o herdeiro
+    advogadoId: '', 
     curador: { 
         nome: '', 
         idTermo: '',
-        advogadoId: '' // ID do advogado que representa o curador
+        advogadoId: ''
     },
     idCertidaoObito: '',
     conjuge: {
         nome: '',
         idProcuracao: '',
         regimeDeBens: 'Comunhão Parcial de Bens',
-        advogadoId: '' // ID do advogado que representa o cônjuge
+        advogadoId: ''
     },
     representantes: []
 });
@@ -46,7 +46,7 @@ export const createInitialState = () => ({
         numero: '',
         cumulativo: false,
         responsavel: { nome: '', cargo: '' },
-        advogados: [] // Array de advogados do processo
+        advogados: [] 
     },
     falecidos: [],
     inventariante: {
@@ -55,7 +55,7 @@ export const createInitialState = () => ({
         documentos: '',
         idProcuracao: '',
         idTermoCompromisso: '',
-        advogadoId: '' // ID do advogado que representa o inventariante
+        advogadoId: '' 
     },
     herdeiros: [],
     renuncia: {
@@ -72,9 +72,9 @@ export const createInitialState = () => ({
         veiculos: [],
         semoventes: [],
         outrosBens: [],
-        valoresResiduais: [],
-        dividas: [],
-        alvaras: []
+        valoresResiduais: [], // Atualizado
+        dividas: [],           // Atualizado
+        alvaras: []            // Atualizado
     },
     documentosProcessuais: {
         primeirasDeclaracoes: { status: 'Não Apresentada', id: '' },
@@ -112,63 +112,77 @@ export const createObservacao = () => ({
     id: crypto.randomUUID(),
     titulo: '',
     conteudo: '',
-    relevancia: 'Média' // Pode ser 'Baixa', 'Média', 'Alta'
+    relevancia: 'Média'
 });
 
-// Função para criar um novo bem imóvel
+// --- FUNÇÕES DE CRIAÇÃO DE BENS ---
+
 export const createImovel = () => ({
+    id: crypto.randomUUID(),
     descricao: '',
     matricula: '',
     tipo: 'Urbano',
     avaliado: false,
     idAvaliacao: '',
-    idMatricula: '', // ID do documento da matrícula
-    // Para imóvel urbano
-    iptu: {
-        determinado: false,
-        id: ''
-    },
-    // Para imóvel rural
-    itr: {
-        determinado: false,
-        id: ''
-    },
-    ccir: {
-        determinado: false,
-        id: ''
-    },
-    car: {
-        determinado: false,
-        id: ''
-    }
+    idMatricula: '',
+    iptu: { determinado: false, id: '' },
+    itr: { determinado: false, id: '' },
+    ccir: { determinado: false, id: '' },
+    car: { determinado: false, id: '' }
 });
 
-// Função para criar um novo veículo
 export const createVeiculo = () => ({
+    id: crypto.randomUUID(),
     descricao: '',
     placa: '',
     renavam: '',
     avaliado: false,
     idAvaliacao: '',
-    idCRLV: '' // ID do documento CRLV
+    idCRLV: ''
 });
 
-// Função para criar um novo semovente
 export const createSemovente = () => ({
+    id: crypto.randomUUID(),
     descricao: '',
     quantidade: '',
     valor: '',
     avaliado: false,
     idAvaliacao: '',
-    idDocumento: '' // ID do documento comprobatório
+    idDocumento: ''
 });
 
-// Função para criar outro bem
 export const createOutroBem = () => ({
+    id: crypto.randomUUID(),
     descricao: '',
     quantidade: '',
     valor: '',
     avaliado: false,
     idAvaliacao: '',
-    idDocumento: '' // ID do documento comprobatório
+    idDocumento: ''
+});
+
+// NOVO: Funções para Valores, Dívidas e Alvarás
+export const createValorResidual = () => ({
+    id: crypto.randomUUID(),
+    tipo: 'Conta Bancária',
+    instituicao: '',
+    valor: '',
+    idDocumento: '' // Novo campo
+});
+
+export const createDivida = () => ({
+    id: crypto.randomUUID(),
+    credor: '',
+    tipo: 'Tributária',
+    valor: '',
+    idDocumento: '' // Novo campo
+});
+
+export const createAlvara = () => ({
+    id: crypto.randomUUID(),
+    finalidade: '',
+    idRequerimento: '',
+    statusDeferimento: 'Pendente', // Opções: Pendente, Deferido, Indeferido
+    idExpedicao: '',
+    prestouContas: 'Não aplicável' // Opções: Não aplicável, Sim, Não, Pendente
 });

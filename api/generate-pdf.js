@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL E COMPLETA
+// api/generate-pdf.js - VERSÃO FINAL FASE 2
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -62,29 +62,14 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
         const advogado = getAdvogadoById(h.advogadoId, allAdvogados);
         const curadorAdvogado = getAdvogadoById(h.curador.advogadoId, allAdvogados);
         const conjugeAdvogado = getAdvogadoById(h.conjuge.advogadoId, allAdvogados);
-
+       
         return `
         <div class="preview-card" style="margin-left: ${level * 20}px;">
             <p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p>
             ${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}
-            
-            ${h.estado === 'Incapaz' ? `
-                <div class="preview-sub-card warning">
-                    <p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>
-                    ${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}
-                </div>` : ''}
-
-            ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `
-                <div class="preview-sub-card">
-                    <p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>
-                    ${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}
-                </div>` : ''}
-
-            ${(h.estado === 'Falecido' && h.representantes && h.representantes.length > 0) ? `
-                <div class="preview-sub-card danger">
-                    <p><strong>Sucessão de Herdeiro Falecido:</strong></p>
-                    ${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}
-                </div>` : ''}
+            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}</div>` : ''}
+            ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card"><p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}</div>` : ''}
+            ${(h.estado === 'Falecido' && h.representantes && h.representantes.length > 0) ? `<div class="preview-sub-card danger"><p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -97,86 +82,71 @@ export default async function handler(req, res) {
     try {
         const { state: data, pendencies } = req.body;
         const herdeirosValidos = data.herdeiros.filter(h => h.nome && h.nome.trim() !== '');
+        const hasBens = Object.values(data.bens).some(arr => Array.isArray(arr) && arr.length > 0);
         const hasIncapaz = herdeirosValidos.some(h => h.estado === 'Incapaz');
 
-        browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-        });
+        let sectionCounter = 0;
+        let htmlSections = '';
 
+        if (data.processo.numero) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p>${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
+        }
+        if (data.falecidos.length > 0) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. De Cujus</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome}</span></p><p><strong>Data do Óbito:</strong><span>${formatDate(f.dataFalecimento)}</span></p></div>`).join('')}</div>`;
+        }
+        if (data.inventariante.nome || herdeirosValidos.length > 0) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
+        }
+        if (data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, herdeirosValidos)}</span></p><p><strong>Tipo:</strong><span>${r.tipo}</span></p><p><strong>Escritura/Termo:</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>`;
+        }
+        if (data.cessao.houveCessao && data.cessao.cessionarios.length > 0) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Cessão de Direitos</h3><div class="preview-card"><p><strong>Escritura de Cessão (ID):</strong><span>${data.cessao.idEscritura || 'Não informado'}</span></p>${data.cessao.cessionarios.map(c => `<div class="preview-sub-card"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p></div>`).join('')}</div></div>`;
+        }
+        if (hasBens) {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section">
+                <h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
+                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
+                ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Placa: ${item.placa || 'N/A'})</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
+                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
+                ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
+                ${data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
+            </div>`;
+        }
+        sectionCounter++;
+        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status}</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status}</span></p></div></div>`;
+        if (data.observacoes.length > 0) {
+          sectionCounter++;
+          htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
+        }
+
+        browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
-        
-        const htmlContent = `
-          <html>
-            <head><meta charset="UTF-8"><style>${css}</style></head>
-            <body>
-              <div id="pdf-container">
-                <div class="preview-header">
-                  <div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div>
-                  <h1>CERTIDÃO DE REGULARIDADE</h1>
-                  <h2 class="subtitle">INVENTÁRIO</h2>
-                </div>
-                <div class="preview-content">
-                  
-                  ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}
-
-                  <div class="preview-section">
-                    <h3>1. Dados do Processo</h3>
-                    <div class="preview-card">
-                      <p><strong>Número do Processo:</strong><span>${data.processo.numero || 'Não informado'}</span></p>
-                      ${data.processo.advogados.length > 0 ? `
-                        <div class="info-advogado" style="margin-top: 1rem;">
-                          <p style="margin:0;"><strong>Advogados no Processo:</strong></p>
-                          <ul style="list-style: none; padding-left: 10px; margin-top: 5px;">
-                            ${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}
-                          </ul>
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-
-                  <div class="preview-section"><h3>2. De Cujus</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome}</span></p><p><strong>Data do Óbito:</strong><span>${formatDate(f.dataFalecimento)}</span></p></div>`).join('')}</div>
-                  
-                  <div class="preview-section">
-                      <h3>3. Inventariante, Herdeiros e Sucessores</h3>
-                      ${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}
-                      ${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}
-                  </div>
-                  
-                  <div class="preview-section">
-                    <h3>6. Relação de Bens, Direitos e Dívidas</h3>
-                    ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
-                    ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Placa: ${item.placa || 'N/A'})</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
-                  </div>
-                  
-                  <div class="preview-section">
-                        <h3>7. Documentos Processuais</h3>
-                        <div class="preview-card">
-                            <p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})` : 'Pendente'}</span></p>
-                            ${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${ data.documentosProcessuais.manifestacaoMP.status === 'Manifestado' ? `Manifestado (ID: ${data.documentosProcessuais.manifestacaoMP.id || 'N/A'})` : 'Pendente' }</span></p>` : ''}
-                            <p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status === 'Proferida' ? `Proferida (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})` : 'Não proferida'}</span></p>
-                        </div>
-                   </div>
-
-                  ${data.observacoes.length > 0 ? `<div class="preview-section"><h3>9. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>` : ''}
-
-                </div>
-                <div class="preview-footer">
-                    <div class="signature-line">
-                        <p>${data.processo.responsavel.nome || '________________________________'}</p>
-                        <p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p>
-                    </div>
-                </div>
+        const finalHtml = `
+          <html><head><meta charset="UTF-8"><style>${css}</style></head>
+          <body>
+            <div id="pdf-container">
+              <div class="preview-header">
+                <div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div>
+                <h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2>
               </div>
-            </body>
-          </html>
-        `;
+              <div class="preview-content">
+                ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}
+                ${htmlSections}
+              </div>
+              <div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div>
+            </div>
+          </body></html>`;
 
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1.5cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' } });
-        
+       
         res.setHeader('Content-Type', 'application/pdf');
         res.status(200).send(pdfBuffer);
         
@@ -184,8 +154,6 @@ export default async function handler(req, res) {
         console.error('Erro ao gerar o PDF:', error);
         res.status(500).json({ message: 'Erro ao gerar o PDF.', error: error.message });
     } finally {
-        if (browser !== null) {
-            await browser.close();
-        }
+        if (browser !== null) { await browser.close(); }
     }
 }
