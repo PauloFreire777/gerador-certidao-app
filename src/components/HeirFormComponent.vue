@@ -57,7 +57,7 @@
         </div>
     </div>
     <div v-if="heir.estado === 'Incapaz'" class="conditional-section warning">
-        <label class="bold">Dados da Curatela</label>
+        <label class="bold">Dados da Curatela (representação do incapaz)</label>
         <div class="grid-2">
             <div class="form-group">
                 <label>Nome do Curador <span class="required">*</span></label>
@@ -67,6 +67,10 @@
                 <label>ID Termo de Compromisso <span class="required">*</span></label>
                 <input type="text" v-model="heir.curador.idTermo">
             </div>
+        </div>
+        <div class="form-group">
+            <label>ID da Procuração do Curador</label>
+            <input type="text" v-model="heir.curador.idProcuracao">
         </div>
         <div class="form-group" v-if="advogados.length > 0">
             <label>Advogado que representa o Curador</label>
@@ -120,7 +124,7 @@
                     <option>Participação Final nos Aquestos</option>
                 </select>
             </div>
-             <div class="form-group" v-if="advogados.length > 0">
+            <div class="form-group" v-if="advogados.length > 0">
                 <label>Advogado do Cônjuge</label>
                 <select v-model="heir.conjuge.advogadoId">
                     <option value="">Selecione um advogado</option>
@@ -146,7 +150,7 @@ export default {
             type: Number,
             default: 0
         },
-        advogados: { // NOVO: Recebe a lista de advogados
+        advogados: {
             type: Array,
             default: () => []
         }

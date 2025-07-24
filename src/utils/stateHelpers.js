@@ -21,6 +21,7 @@ export const createHeirObject = () => ({
     curador: { 
         nome: '', 
         idTermo: '',
+        idProcuracao: '', // NOVO CAMPO
         advogadoId: ''
     },
     idCertidaoObito: '',
@@ -38,7 +39,7 @@ export const createCessionarioObject = () => ({
     nome: '',
     documentos: '',
     idProcuracao: '',
-    advogadoId: '' // NOVO CAMPO
+    advogadoId: ''
 });
 
 // Função para criar um estado inicial limpo

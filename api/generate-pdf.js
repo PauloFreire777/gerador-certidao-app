@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL E 100% CORRIGIDA
+// api/generate-pdf.js - VERSÃO FINAL COM TODAS AS CORREÇÕES
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -19,15 +19,22 @@ const css = `
     .preview-header h1 { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: white; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); }
     .preview-header h2.subtitle { font-family: var(--font-sans); font-size: 1.1rem; opacity: 0.8; font-weight: 400; margin-top: 0.25rem; }
 
-    .preview-section { padding: 0 1.5rem; margin-bottom: 0.5rem; page-break-inside: avoid; }
-    .preview-section h3 { font-family: var(--font-sans); font-size: 1.2rem; font-weight: 600; color: var(--primary-color); padding-bottom: 0.5rem; margin: 1rem 0; border-bottom: 2px solid var(--primary-color); page-break-after: avoid; }
-    .preview-section h4 { font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: #444; margin-top: 1.25rem; margin-bottom: 0.75rem; padding-bottom: 0.25rem; border-bottom: 1px solid #eee; page-break-after: avoid; }
+    /* AJUSTE: Diminuído o espaçamento entre as seções */
+    .preview-section { padding: 0 1.5rem; margin-bottom: 0.25rem; page-break-inside: avoid; }
+    
+    /* LÓGICA DE QUEBRA DE PÁGINA */
+    .preview-section h3, .preview-section h4 { page-break-after: avoid; }
+    .preview-card, .preview-card-small, .preview-sub-card { page-break-inside: avoid; }
+    .preview-footer { page-break-before: auto; }
+
+    .preview-section h3 { font-family: var(--font-sans); font-size: 1.2rem; font-weight: 600; color: var(--primary-color); padding-bottom: 0.5rem; margin: 1rem 0; border-bottom: 2px solid var(--primary-color); }
+    .preview-section h4 { font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: #444; margin-top: 1.25rem; margin-bottom: 0.75rem; padding-bottom: 0.25rem; border-bottom: 1px solid #eee; }
     
     .pendencies-section h3 { color: var(--danger-color); border-bottom-color: var(--danger-color); }
     .pendencies-list { list-style-type: none; padding-left: 0; margin: 0; }
     .pendencies-list li { background-color: rgba(192, 57, 43, 0.05); padding: 0.75rem 1rem; border-left: 3px solid var(--danger-color); margin-bottom: 0.5rem !important; border-radius: 4px; font-family: var(--font-sans); font-size: 10pt; }
     
-    .preview-card, .preview-card-small { page-break-inside: avoid; border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
+    .preview-card, .preview-card-small { border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
     .preview-card p, .preview-card-small p { margin-bottom: 0.5rem; display: flex; align-items: flex-start; }
     .preview-card p:last-child, .preview-card-small p:last-child { margin-bottom: 0; }
     .preview-card strong, .preview-card-small strong { font-weight: 600; font-family: var(--font-sans); color: #555; margin-right: 8px; min-width: 180px; }
@@ -38,7 +45,7 @@ const css = `
     .info-advogado { color: #2980b9; background-color: rgba(52, 152, 219, 0.07); border-left-color: #3498db; }
     .info-procuracao p, .info-advogado p { margin: 0; }
     
-    .preview-sub-card { margin-top: 0.75rem; padding: 0.75rem; border-radius: 4px; border-left: 3px solid #ccc; page-break-inside: avoid; }
+    .preview-sub-card { margin-top: 0.75rem; padding: 0.75rem; border-radius: 4px; border-left: 3px solid #ccc; }
     .preview-sub-card.warning { border-left-color: var(--warning-color); background-color: rgba(241, 196, 15, 0.05); }
     .preview-sub-card.danger { border-left-color: var(--danger-color); background-color: rgba(231, 76, 60, 0.05); }
 
@@ -47,7 +54,7 @@ const css = `
     .obs-alta { border-left: 4px solid var(--danger-color); background-color: rgba(192, 57, 43, 0.05); }
     .obs-content span { white-space: pre-wrap; }
 
-    .preview-footer { padding: 2rem 1.5rem 0 1.5rem; border-top: 1px solid #ccc; margin-top: 2rem; page-break-before: auto; text-align: center; }
+    .preview-footer { padding: 2rem 1.5rem 0 1.5rem; border-top: 1px solid #ccc; margin-top: 2rem; text-align: center; }
     .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; display: inline-block; }
 `;
 
@@ -67,7 +74,7 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
         <div class="preview-card" style="margin-left: ${level * 20}px;">
             <p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p>
             ${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}
-            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}</div>` : ''}
+            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>${h.curador.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Curador (ID):</strong> <span>${h.curador.idProcuracao}</span></p></div>` : ''}${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}</div>` : ''}
             ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card"><p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}</div>` : ''}
             ${(h.estado === 'Falecido' && h.representantes && h.representantes.length > 0) ? `<div class="preview-sub-card danger"><p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}</div>` : ''}
         </div>`;
@@ -90,7 +97,7 @@ export default async function handler(req, res) {
 
         if (data.processo.numero) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p><p><strong>Tipo:</strong><span>${data.processo.cumulativo ? 'Inventário Cumulativo' : 'Inventário Padrão'}</span></p>${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p>${data.processo.cumulativo ? `<p><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>` : ''}${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
         }
         if (data.falecidos.length > 0) {
             sectionCounter++;
@@ -108,28 +115,38 @@ export default async function handler(req, res) {
             sectionCounter++;
             const cessionariosHtml = data.cessao.cessionarios.map(c => {
                 const advogado = getAdvogadoById(c.advogadoId, data.processo.advogados);
-                return `<div class="preview-sub-card">
-                    <p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p>
-                    <p><strong>Docs. Pessoais (ID):</strong><span>${c.documentos || 'Não informado'}</span></p>
-                    ${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}
-                    ${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}
-                </div>`;
+                return `<div class="preview-sub-card"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${c.documentos || 'Não informado'}</span></p>${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}</div>`;
             }).join('');
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Cessão de Direitos</h3><div class="preview-card"><p><strong>Escritura de Cessão (ID):</strong><span>${data.cessao.idEscritura || 'Não informado'}</span></p>${cessionariosHtml}</div></div>`;
         }
         if (hasBens) {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
-                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && !(item.avaliado && item.idAvaliacao) ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado && item.idAvaliacao ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao})</span></p>`: ''}</div>`).join('')}` : ''}
-                ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Placa: ${item.placa || 'N/A'})</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && !(item.avaliado && item.idAvaliacao) ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado && item.idAvaliacao ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao})</span></p>`: ''}</div>`).join('')}` : ''}
-                ${data.bens.semoventes.length > 0 ? `<h4>Semoventes</h4>${data.bens.semoventes.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong><span>${item.descricao}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p>${hasIncapaz && !(item.avaliado && item.idAvaliacao) ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado && item.idAvaliacao ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao})</span></p>`: ''}</div>`).join('')}`: ''}
-                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
-                ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
+                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p><p><strong>Renavam:</strong> <span>${item.renavam || 'N/A'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
+                ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'}</span></p><p><strong>Placa:</strong> <span>${item.placa || 'N/A'}</span></p><p><strong>Renavam:</strong> <span>${item.renavam || 'N/A'}</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
+                ${data.bens.semoventes.length > 0 ? `<h4>Semoventes</h4>${data.bens.semoventes.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong><span>${item.descricao}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}`: ''}
+                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Instituição:</strong><span>${item.instituicao}</span></p><p><strong>Valor (R$):</strong><span>${item.valor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
+                ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Valor (R$):</strong><span>${item.valor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
                 ${data.bens.houvePedidoAlvara && data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
             </div>`;
         }
         sectionCounter++;
-        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status}</span></p><p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status}</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status}</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status}</span></p></div></div>`;
+        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card">
+            <p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status} (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})</span></p>
+            ${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}
+            <p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p>
+            <p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status} (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})</span></p>
+            ${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}
+            <p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status} (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})</span></p>
+            <p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status} (ID: ${data.documentosProcessuais.transito.id || 'N/A'})</span></p>
+        </div></div>`;
+        if (data.documentacaoTributaria.length > 0 || data.custas.situacao !== 'Ao final') {
+            sectionCounter++;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Regularidade Tributária e Custas</h3>
+            ${data.documentacaoTributaria.map(trib => `<div class="preview-card"><h4>Tributos de: <strong>${trib.nomeFalecido}</strong></h4><p><strong>Status ITCD:</strong><span>${trib.statusItcd}</span></p><p><strong>CND Municipal:</strong><span>${trib.cndMunicipal.status === 'Juntada' ? `Juntada (ID: ${trib.cndMunicipal.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Estadual:</strong><span>${trib.cndEstadual.status === 'Juntada' ? `Juntada (ID: ${trib.cndEstadual.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Federal:</strong><span>${trib.cndFederal.status === 'Juntada' ? `Juntada (ID: ${trib.cndFederal.id || 'N/A'})` : 'Não Juntada'}</span></p></div>`).join('')}
+            <div class="preview-card"><h4>Custas Processuais</h4><p><strong>Situação:</strong><span>${data.custas.situacao}</span></p></div>
+            </div>`;
+        }
         if (data.observacoes.length > 0) {
           sectionCounter++;
           htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
@@ -155,13 +172,11 @@ export default async function handler(req, res) {
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1.5cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' } });
-        
-        
+    
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Length', pdfBuffer.length);
         res.status(200).end(pdfBuffer); 
-   
-        
+     
     } catch (error) {
         console.error('Erro ao gerar o PDF:', error);
         res.status(500).json({ message: 'Erro ao gerar o PDF.', error: error.message });
