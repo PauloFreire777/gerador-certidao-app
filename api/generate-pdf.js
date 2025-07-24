@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL COM TODAS AS CORREÇÕES
+// api/generate-pdf.js - VERSÃO FINAL COM TODAS AS CORREÇÕES DE EXIBIÇÃO
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -19,10 +19,7 @@ const css = `
     .preview-header h1 { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: white; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); }
     .preview-header h2.subtitle { font-family: var(--font-sans); font-size: 1.1rem; opacity: 0.8; font-weight: 400; margin-top: 0.25rem; }
 
-    /* AJUSTE: Diminuído o espaçamento entre as seções */
     .preview-section { padding: 0 1.5rem; margin-bottom: 0.25rem; page-break-inside: avoid; }
-    
-    /* LÓGICA DE QUEBRA DE PÁGINA */
     .preview-section h3, .preview-section h4 { page-break-after: avoid; }
     .preview-card, .preview-card-small, .preview-sub-card { page-break-inside: avoid; }
     .preview-footer { page-break-before: auto; }
@@ -56,6 +53,8 @@ const css = `
 
     .preview-footer { padding: 2rem 1.5rem 0 1.5rem; border-top: 1px solid #ccc; margin-top: 2rem; text-align: center; }
     .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; display: inline-block; }
+    .signature-name { font-weight: 600; font-size: 11pt; overflow-wrap: break-word; }
+    .signature-title { font-size: 10pt; color: #555; }
 `;
 
 // --- FUNÇÕES AUXILIARES DE GERAÇÃO DE HTML ---
@@ -63,6 +62,7 @@ function formatDate(d) { if (!d) return 'Não informado'; try { const dt = new D
 function getAdvogadoById(id, advogados) { if (!id || !advogados) return null; return advogados.find(a => a.id === id); }
 function getHeirNameById(id, allHeirs) { const find = (heirs) => { for(const h of heirs) { if(h.id === id) return h.nome; if(h.representantes) { const found = find(h.representantes); if(found) return found; } } return null; }; return find(allHeirs) || 'Não encontrado' }
 function getEditalStatus(edital) { if (edital.determinado === 'Não') return 'Não determinada a expedição.'; if (edital.status === 'Não Expedido') return 'Expedição pendente.'; if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`; return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`; }
+function getCustasStatus(custas) { if (custas.situacao === 'Isenção') return 'Isento de custas.'; if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.'; if (custas.situacao === 'Devidas') { const c = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente'; const p = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente'; return `${c}, ${p}.`; } return 'Situação não informada.'; }
 
 function generateHeirsHtml(heirs, allAdvogados, level = 0) {
     if (!heirs || heirs.length === 0) return '';
@@ -122,29 +122,21 @@ export default async function handler(req, res) {
         if (hasBens) {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
-                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p><p><strong>Renavam:</strong> <span>${item.renavam || 'N/A'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
+                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
                 ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'}</span></p><p><strong>Placa:</strong> <span>${item.placa || 'N/A'}</span></p><p><strong>Renavam:</strong> <span>${item.renavam || 'N/A'}</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
                 ${data.bens.semoventes.length > 0 ? `<h4>Semoventes</h4>${data.bens.semoventes.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong><span>${item.descricao}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}`: ''}
-                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Instituição:</strong><span>${item.instituicao}</span></p><p><strong>Valor (R$):</strong><span>${item.valor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
+                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Instituição:</strong><span>${item.instituicao || 'N/A'}</span></p><p><strong>Valor (R$):</strong><span>${item.valor || 'N/A'}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
                 ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Valor (R$):</strong><span>${item.valor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
                 ${data.bens.houvePedidoAlvara && data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
             </div>`;
         }
         sectionCounter++;
-        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card">
-            <p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status} (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})</span></p>
-            ${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}
-            <p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p>
-            <p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status} (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})</span></p>
-            ${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}
-            <p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status} (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})</span></p>
-            <p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status} (ID: ${data.documentosProcessuais.transito.id || 'N/A'})</span></p>
-        </div></div>`;
+        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status} (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})</span></p>${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}<p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status} (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status} (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status} (ID: ${data.documentosProcessuais.transito.id || 'N/A'})</span></p></div></div>`;
         if (data.documentacaoTributaria.length > 0 || data.custas.situacao !== 'Ao final') {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Regularidade Tributária e Custas</h3>
             ${data.documentacaoTributaria.map(trib => `<div class="preview-card"><h4>Tributos de: <strong>${trib.nomeFalecido}</strong></h4><p><strong>Status ITCD:</strong><span>${trib.statusItcd}</span></p><p><strong>CND Municipal:</strong><span>${trib.cndMunicipal.status === 'Juntada' ? `Juntada (ID: ${trib.cndMunicipal.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Estadual:</strong><span>${trib.cndEstadual.status === 'Juntada' ? `Juntada (ID: ${trib.cndEstadual.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Federal:</strong><span>${trib.cndFederal.status === 'Juntada' ? `Juntada (ID: ${trib.cndFederal.id || 'N/A'})` : 'Não Juntada'}</span></p></div>`).join('')}
-            <div class="preview-card"><h4>Custas Processuais</h4><p><strong>Situação:</strong><span>${data.custas.situacao}</span></p></div>
+            <div class="preview-card"><h4>Custas Processuais</h4><p><strong>Situação:</strong><span>${getCustasStatus(data.custas)}</span></p></div>
             </div>`;
         }
         if (data.observacoes.length > 0) {
@@ -154,29 +146,15 @@ export default async function handler(req, res) {
 
         browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
-        const finalHtml = `
-          <html><head><meta charset="UTF-8"><style>${css}</style></head>
-          <body>
-            <div id="pdf-container">
-              <div class="preview-header">
-                <div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div>
-                <h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2>
-              </div>
-              <div class="preview-content">
-                ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}
-                ${htmlSections}
-              </div>
-              <div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div>
-            </div>
-          </body></html>`;
+        const finalHtml = `<html><head><meta charset="UTF-8"><style>${css}</style></head><body><div id="pdf-container"><div class="preview-header"><div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div><h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2></div><div class="preview-content">${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}${htmlSections}</div><div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div></div></body></html>`;
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1.5cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' } });
-    
+        
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Length', pdfBuffer.length);
         res.status(200).end(pdfBuffer); 
-     
+        
     } catch (error) {
         console.error('Erro ao gerar o PDF:', error);
         res.status(500).json({ message: 'Erro ao gerar o PDF.', error: error.message });
