@@ -320,6 +320,86 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 .sub-card .card-title { font-size: 1rem; }
 .conditional-input { margin-top: 0.5rem; }
 
+/* --- NOVOS ESTILOS PARA AS FUNCIONALIDADES --- */
+
+/* Estilo para o subtítulo "INVENTÁRIO" */
+.preview-header h2.subtitle {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    opacity: 0.8;
+    font-weight: 400;
+    margin-top: 0.25rem;
+}
+
+/* Layout de cards para a Aba 6 - Documentos Processuais */
+.docs-process-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.doc-card {
+    background-color: #fafafa;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-card h4 {
+    background-color: #e9ecef;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    color: var(--primary-color);
+}
+
+.doc-content {
+    padding: 1.5rem;
+    flex-grow: 1;
+}
+
+/* Estilo para a caixa de informação do advogado */
+.info-advogado {
+    font-size: 9pt !important;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    border-left-width: 3px;
+    border-left-style: solid;
+    color: #2980b9;
+    background-color: rgba(52, 152, 219, 0.07);
+    border-left-color: #3498db;
+}
+
+.info-advogado p {
+    margin: 0;
+}
+
+/* Estilos para as observações coloridas no preview */
+.preview-card.obs-baixa {
+    border-left: 4px solid var(--accent-color);
+}
+.preview-card.obs-media {
+    border-left: 4px solid var(--warning-color);
+}
+.preview-card.obs-alta {
+    border-left: 4px solid var(--danger-color);
+}
+.obs-content span {
+    white-space: pre-wrap; /* Para manter as quebras de linha do textarea */
+}
+
+/* Texto de aviso para campos pendentes no preview */
+.warning-text {
+    color: var(--warning-color);
+    font-weight: bold;
+}
+
 /* --- DESIGN PROFISSIONAL PARA O PREVIEW E PDF --- */
 #pdf-container, .preview-panel { 
     background-color: var(--surface-color); 
@@ -492,7 +572,7 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 }
 .signature-area { display: flex; justify-content: center; text-align: center; margin-bottom: 2rem; }
 .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; }
-.signature-name { font-weight: 600; font-size: 11pt; }
+.signature-name { font-weight: 600; font-size: 11pt; overflow-wrap: break-word; }
 .signature-title { font-size: 10pt; color: #555; }
 .footer-info {
     font-family: var(--font-sans);
@@ -528,51 +608,51 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
 /* ===== REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF (VERSÃO FINAL E ESTÁVEL) ===== */
 
 @media print {
-  /* Regra universal para forçar a impressão de cores de fundo e textos */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
+    /* Regra universal para forçar a impressão de cores de fundo e textos */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
 
-  body {
-    background-color: white !important;
-    font-size: 10pt; /* Tamanho base para o PDF */
-  }
+    body {
+        background-color: white !important;
+        font-size: 10pt; /* Tamanho base para o PDF */
+    }
 
-  /* Esconde elementos da UI que não devem ir para o PDF */
-  .main-header, .form-panel, .tab-navigation {
-    display: none !important;
-  }
+    /* Esconde elementos da UI que não devem ir para o PDF */
+    .main-header, .form-panel, .tab-navigation {
+        display: none !important;
+    }
 
-  /* Expande o container do PDF para ocupar toda a área de impressão */
-  .preview-panel-container, #pdf-container, .preview-panel {
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    background-color: white !important;
-  }
-  
-  .preview-content {
-      padding: 0 !important;
-  }
+    /* Expande o container do PDF para ocupar toda a área de impressão */
+    .preview-panel-container, #pdf-container, .preview-panel {
+        width: 100% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+        background-color: white !important;
+    }
+    
+    .preview-content {
+        padding: 0 !important;
+    }
 
-  /* Evita quebras de página "ruins" dentro de elementos importantes */
-  .preview-section, .preview-card, .preview-card-small, .preview-sub-card {
-    page-break-inside: avoid;
-  }
+    /* Evita quebras de página "ruins" dentro de elementos importantes */
+    .preview-section, .preview-card, .preview-card-small, .preview-sub-card {
+        page-break-inside: avoid;
+    }
 
-  /* Evita que um título de seção fique sozinho no final de uma página */
-  .preview-section h3, .preview-section h4 {
-    page-break-after: avoid;
-  }
+    /* Evita que um título de seção fique sozinho no final de uma página */
+    .preview-section h3, .preview-section h4 {
+        page-break-after: avoid;
+    }
 
-  /* Força uma quebra de página ANTES da seção de assinatura, se necessário, para não ficar órfã */
-  .preview-footer {
-    page-break-before: auto;
-  }
+    /* Força uma quebra de página ANTES da seção de assinatura, se necessário, para não ficar órfã */
+    .preview-footer {
+        page-break-before: auto;
+    }
 }

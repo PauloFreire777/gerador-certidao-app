@@ -1,8 +1,15 @@
-// Arquivo: src/utils/stateHelpers.js
+// Arquivo: src/utils/stateHelpers.js - VERSÃO CORRIGIDA
+
+// Função para criar um novo advogado
+export const createAdvogadoObject = () => ({
+    id: crypto.randomUUID(),
+    nome: '',
+    oab: ''
+});
 
 // Função para criar um novo herdeiro (usada recursivamente)
 export const createHeirObject = () => ({
-    id: crypto.randomUUID(), // ID único para reatividade
+    id: crypto.randomUUID(),
     nome: '',
     parentesco: '',
     documentos: '',
@@ -10,9 +17,20 @@ export const createHeirObject = () => ({
     estadoCivil: 'Solteiro(a)',
     isMeeiro: false,
     idProcuracao: '',
-    curador: { nome: '', idTermo: '' },
+    advogadoId: '', 
+    curador: { 
+        nome: '', 
+        idTermo: '',
+        idProcuracao: '', // NOVO CAMPO
+        advogadoId: ''
+    },
     idCertidaoObito: '',
-    conjuge: { nome: '', idProcuracao: '', regimeDeBens: 'Comunhão Parcial de Bens' },
+    conjuge: {
+        nome: '',
+        idProcuracao: '',
+        regimeDeBens: 'Comunhão Parcial de Bens',
+        advogadoId: ''
+    },
     representantes: []
 });
 
@@ -20,15 +38,17 @@ export const createCessionarioObject = () => ({
     id: crypto.randomUUID(),
     nome: '',
     documentos: '',
-    idProcuracao: ''
+    idProcuracao: '',
+    advogadoId: ''
 });
 
-// Função para criar um estado inicial limpo (VERSÃO ATUALIZADA)
+// Função para criar um estado inicial limpo
 export const createInitialState = () => ({
     processo: {
         numero: '',
         cumulativo: false,
-        responsavel: { nome: '', cargo: '' }
+        responsavel: { nome: '', cargo: '' },
+        advogados: [] 
     },
     falecidos: [],
     inventariante: {
@@ -36,12 +56,13 @@ export const createInitialState = () => ({
         parentesco: '',
         documentos: '',
         idProcuracao: '',
-        idTermoCompromisso: ''
+        idTermoCompromisso: '',
+        advogadoId: '' 
     },
     herdeiros: [],
     renuncia: {
         houveRenuncia: false,
-        renunciantes: [] // Array of { herdeiroId: '...', tipo: 'Abdicativa', idEscritura: '' }
+        renunciantes: []
     },
     cessao: {
         houveCessao: false,
@@ -55,29 +76,30 @@ export const createInitialState = () => ({
         outrosBens: [],
         valoresResiduais: [],
         dividas: [],
-        alvaras: [],
-        idLaudoAvaliacaoIncapaz: ''
+        houvePedidoAlvara: false,
+        alvaras: []
     },
     documentosProcessuais: {
         primeirasDeclaracoes: { status: 'Não Apresentada', id: '' },
         edital: { determinado: 'Não', status: 'Não Expedido', id: '', prazoDecorrido: 'Não', idDecursoPrazo: '' },
         ultimasDeclaracoes: { status: 'Não Apresentada', id: '' },
-        testamentosCensec: [], 
+        testamentosCensec: [],
         sentenca: { status: 'Não Proferida', id: '' },
-        transito: { status: 'Não Ocorrido', id: '' }
+        transito: { status: 'Não Ocorrido', id: '' },
+        manifestacaoMP: { necessaria: false, status: 'Não Manifestado', id: '' }
     },
     custas: {
-        situacao: 'Ao final', // 'Ao final', 'Isenção', 'Devidas'
-        calculada: 'Não', // 'Sim', 'Não'
+        situacao: 'Ao final',
+        calculada: 'Não',
         idCalculo: '',
-        paga: 'Não', // 'Sim', 'Não'
+        paga: 'Não',
         idPagamento: ''
     },
     documentacaoTributaria: [],
     observacoes: []
 });
 
-// Função para criar um novo falecido (VERSÃO ATUALIZADA)
+// Função para criar um novo falecido
 export const createFalecido = () => ({
     id: crypto.randomUUID(),
     nome: '',
@@ -95,3 +117,12 @@ export const createObservacao = () => ({
     conteudo: '',
     relevancia: 'Média'
 });
+
+// --- FUNÇÕES DE CRIAÇÃO DE BENS ---
+export const createImovel = () => ({ id: crypto.randomUUID(), descricao: '', matricula: '', tipo: 'Urbano', avaliado: false, idAvaliacao: '', idMatricula: '', iptu: { determinado: false, id: '' }, itr: { determinado: false, id: '' }, ccir: { determinado: false, id: '' }, car: { determinado: false, id: '' } });
+export const createVeiculo = () => ({ id: crypto.randomUUID(), descricao: '', placa: '', renavam: '', avaliado: false, idAvaliacao: '', idCRLV: '' });
+export const createSemovente = () => ({ id: crypto.randomUUID(), descricao: '', quantidade: '', valor: '', avaliado: false, idAvaliacao: '', idDocumento: '' });
+export const createOutroBem = () => ({ id: crypto.randomUUID(), descricao: '', quantidade: '', valor: '', avaliado: false, idAvaliacao: '', idDocumento: '' });
+export const createValorResidual = () => ({ id: crypto.randomUUID(), tipo: 'Conta Bancária', instituicao: '', valor: '', idDocumento: '' });
+export const createDivida = () => ({ id: crypto.randomUUID(), credor: '', tipo: 'Tributária', valor: '', idDocumento: '' });
+export const createAlvara = () => ({ id: crypto.randomUUID(), finalidade: '', idRequerimento: '', statusDeferimento: 'Pendente', idExpedicao: '', prestouContas: 'Não aplicável' });
