@@ -460,6 +460,34 @@ export default {
         reader.readAsText(file);
         event.target.value = '';
     },
+   formatDate(dateString) {
+    if (!dateString) return 'Não informado';
+    try {
+        const date = new Date(dateString + 'T00:00:00');
+        if (isNaN(date.getTime())) return dateString;
+        return date.toLocaleDateString('pt-BR');
+    } catch (e) {
+        return dateString;
+    }
+},
+getEditalStatus() {
+    const edital = this.state.documentosProcessuais.edital;
+    if (edital.determinado === 'Não') return 'Não determinada a expedição.';
+    if (edital.status === 'Não Expedido') return 'Expedição pendente.';
+    if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`;
+    return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`;
+},
+getCustasStatus() {
+    const custas = this.state.custas;
+    if (custas.situacao === 'Isenção') return 'Isento de custas.';
+    if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.';
+    if (custas.situacao === 'Devidas') {
+        const calculo = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente';
+        const pagamento = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente';
+        return `${calculo}, ${pagamento}.`;
+    }
+    return 'Situação não informada.';
+},
     async generatePdf() {
         console.log("Enviando dados para o servidor de PDF...");
         this.isLoading = true;
