@@ -46,6 +46,15 @@
             <label>ID da Procuração</label>
             <input type="text" v-model="heir.idProcuracao">
         </div>
+        <div class="form-group" v-if="advogados.length > 0">
+            <label>Advogado Representante</label>
+            <select v-model="heir.advogadoId">
+                <option value="">Selecione um advogado</option>
+                <option v-for="adv in advogados" :key="adv.id" :value="adv.id">
+                    {{ adv.nome }} - OAB: {{ adv.oab }}
+                </option>
+            </select>
+        </div>
     </div>
     <div v-if="heir.estado === 'Incapaz'" class="conditional-section warning">
         <label class="bold">Dados da Curatela</label>
@@ -58,6 +67,15 @@
                 <label>ID Termo de Compromisso <span class="required">*</span></label>
                 <input type="text" v-model="heir.curador.idTermo">
             </div>
+        </div>
+        <div class="form-group" v-if="advogados.length > 0">
+            <label>Advogado que representa o Curador</label>
+            <select v-model="heir.curador.advogadoId">
+                <option value="">Selecione um advogado</option>
+                <option v-for="adv in advogados" :key="adv.id" :value="adv.id">
+                    {{ adv.nome }} - OAB: {{ adv.oab }}
+                </option>
+            </select>
         </div>
     </div>
     <div v-if="heir.estado === 'Falecido'" class="conditional-section danger">
@@ -74,6 +92,7 @@
                 :index="rIndex"
                 :is-representative="true"
                 :level="level + 1"
+                :advogados="advogados"
                 @remove="removeRepresentante(rIndex)">
             </HeirFormComponent>
             <button @click="addRepresentante" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Representante</button>
@@ -91,14 +110,25 @@
                 <input type="text" v-model="heir.conjuge.idProcuracao">
             </div>
         </div>
-        <div class="form-group">
-            <label>Regime de Bens</label>
-            <select v-model="heir.conjuge.regimeDeBens">
-                <option>Comunhão Parcial de Bens</option>
-                <option>Comunhão Universal de Bens</option>
-                <option>Separação Total de Bens</option>
-                <option>Participação Final nos Aquestos</option>
-            </select>
+        <div class="grid-2">
+            <div class="form-group">
+                <label>Regime de Bens</label>
+                <select v-model="heir.conjuge.regimeDeBens">
+                    <option>Comunhão Parcial de Bens</option>
+                    <option>Comunhão Universal de Bens</option>
+                    <option>Separação Total de Bens</option>
+                    <option>Participação Final nos Aquestos</option>
+                </select>
+            </div>
+             <div class="form-group" v-if="advogados.length > 0">
+                <label>Advogado do Cônjuge</label>
+                <select v-model="heir.conjuge.advogadoId">
+                    <option value="">Selecione um advogado</option>
+                    <option v-for="adv in advogados" :key="adv.id" :value="adv.id">
+                        {{ adv.nome }} - OAB: {{ adv.oab }}
+                    </option>
+                </select>
+            </div>
         </div>
     </div>
   </div>
@@ -115,11 +145,13 @@ export default {
         level: {
             type: Number,
             default: 0
+        },
+        advogados: { // NOVO: Recebe a lista de advogados
+            type: Array,
+            default: () => []
         }
     },
     emits: ['remove'],
-    // As funções que criam objetos agora precisarão ser importadas aqui também.
-    // Vamos tratar disso depois.
     methods: {
         addRepresentante() {
             this.heir.representantes.push(createHeirObject());
