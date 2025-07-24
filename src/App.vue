@@ -51,7 +51,7 @@ export default {
     hasBens() {
       return Object.values(this.state.bens).some(arr => Array.isArray(arr) ? arr.length > 0 : false);
     },
-  
+   
     pendencies() {
       const items = [];
       const { falecidos, inventariante, herdeiros, documentacaoTributaria, bens, documentosProcessuais, cessao, renuncia, custas } = this.state;
@@ -76,7 +76,7 @@ export default {
         if (heir.estado === 'Capaz' && !heir.idProcuracao) items.push(`Procuração de ${path} não juntada.`);
         if (heir.estado === 'Incapaz') {
             if (!heir.curador.idTermo) items.push(`Termo de Compromisso do Curador de ${path} não juntado.`);
-            if (!heir.curador.idProcuracao) items.push(`Procuração do Curador de ${path} não juntada.`); // CORRIGIDO
+            if (!heir.curador.idProcuracao) items.push(`Procuração do Curador de ${path} não juntada.`);
         }
         if (heir.estado === 'Falecido' && !heir.idCertidaoObito) items.push(`Certidão de Óbito de ${path} não juntada.`);
         if ((heir.estadoCivil === 'Casado(a)' || heir.estadoCivil === 'União Estável') && !heir.conjuge.idProcuracao) items.push(`Procuração do cônjuge de ${path} não juntada.`);
@@ -100,7 +100,7 @@ export default {
       ['imoveis', 'veiculos', 'semoventes'].forEach(tipoBem => {
           bens[tipoBem].forEach((bem, i) => {
               const nome = bem.descricao || `${tipoBem.charAt(0).toUpperCase() + tipoBem.slice(1, -1)} ${i+1}`;
-              // LÓGICA CORRIGIDA: A pendência de avaliação deve existir por padrão se houver incapaz
+          
               if (this.hasIncapaz && !bem.avaliado) {
                   items.push(`Avaliação judicial de "${nome}" pendente.`);
               }
@@ -109,27 +109,69 @@ export default {
               }
           });
       });
-      // ... (outras pendências de bens)
-      
-      // Documentação Tributária - CORRIGIDO
+      bens.imoveis.forEach((bem, i) => {
+          const nome = bem.descricao || `Imóvel ${i+1}`;
+          if (!bem.idMatricula) items.push(`Matrícula de "${nome}" não juntada.`);
+          if (bem.tipo === 'Urbano' && bem.iptu.determinado && !bem.iptu.id) items.push(`IPTU de "${nome}" não juntado.`);
+          if (bem.tipo === 'Rural') {
+            if (bem.itr.determinado && !bem.itr.id) items.push(`ITR de "${nome}" não juntado.`);
+            if (bem.ccir.determinado && !bem.ccir.id) items.push(`CCIR de "${nome}" não juntado.`);
+            if (bem.car.determinado && !bem.car.id) items.push(`CAR de "${nome}" não juntado.`);
+          }
+      });
+      bens.veiculos.forEach((bem, i) => {
+          const nome = bem.descricao || `Veículo ${i+1}`;
+          if (!bem.idCRLV) items.push(`CRLV de "${nome}" não juntado.`);
+      });
+      bens.semoventes.forEach((bem, i) => {
+          const nome = bem.descricao || `Semovente ${i+1}`;
+          if (!bem.idDocumento) items.push(`Documento de "${nome}" não juntado.`);
+      });
+      bens.valoresResiduais.forEach((bem, i) => {
+        const nome = bem.tipo || `Valor Residual ${i+1}`;
+        if (!bem.idDocumento) items.push(`Documento comprobatório de ${nome} não juntado.`);
+      });
+      bens.dividas.forEach((bem, i) => {
+        const nome = bem.credor || `Dívida ${i+1}`;
+        if (!bem.idDocumento) items.push(`Documento comprobatório da dívida com ${nome} não juntado.`);
+      });
+      if (bens.houvePedidoAlvara) {
+          if (bens.alvaras.length === 0) {
+              items.push('Nenhum detalhe de alvará foi adicionado, embora o pedido tenha sido marcado.');
+          }
+          bens.alvaras.forEach((alvara, i) => {
+            const nome = alvara.finalidade || `Alvará ${i+1}`;
+            if (alvara.statusDeferimento === 'Pendente') items.push(`Análise do pedido de alvará para "${nome}" pendente.`);
+            if (alvara.statusDeferimento === 'Deferido' && !alvara.idExpedicao) items.push(`Alvará para "${nome}" deferido, mas expedição pendente.`);
+            if (alvara.idExpedicao && alvara.prestouContas === 'Pendente') items.push(`Prestação de contas do alvará para "${nome}" pendente.`);
+          });
+      }
+
+      // Documentos Processuais - BLOCO CORRIGIDO E COMPLETO
+      if (documentosProcessuais.primeirasDeclaracoes.status === 'Não Apresentada') items.push('Primeiras Declarações não apresentadas.');
+      if (documentosProcessuais.ultimasDeclaracoes.status === 'Não Apresentada') items.push('Últimas Declarações não apresentadas.');
+      if (documentosProcessuais.edital.determinado === 'Sim' && documentosProcessuais.edital.status === 'Não Expedido') items.push('Expedição do Edital determinada, mas pendente.');
+      if (documentosProcessuais.edital.status === 'Expedido' && documentosProcessuais.edital.prazoDecorrido === 'Não') items.push('Decurso de prazo do Edital pendente de certificação.');
+      if (this.hasIncapaz && documentosProcessuais.manifestacaoMP.status === 'Não Manifestado') items.push('Manifestação do Ministério Público pendente.');
+      documentosProcessuais.testamentosCensec.forEach(item => { if (!item.id) { const docType = item.deixouTestamento ? 'Testamento' : 'Certidão CENSEC'; items.push(`${docType} de ${item.nomeFalecido || 'falecido sem nome'} não juntada.`); } });
+      if (documentosProcessuais.sentenca.status === 'Não Proferida') items.push('Sentença homologatória pendente de ser proferida.');
+      if (documentosProcessuais.sentenca.status === 'Proferida' && documentosProcessuais.transito.status === 'Não Ocorrido') items.push('Trânsito em julgado da sentença pendente de certificação.');
+
+      // Tributos e Custas
       documentacaoTributaria.forEach(trib => {
         if (trib.statusItcd === 'Não Declarado') items.push(`ITCD referente a ${trib.nomeFalecido} não declarado.`);
         if (trib.cndMunicipal.status === 'Não Juntada') items.push(`CND Municipal de ${trib.nomeFalecido} não juntada.`);
         if (trib.cndEstadual.status === 'Não Juntada') items.push(`CND Estadual de ${trib.nomeFalecido} não juntada.`);
         if (trib.cndFederal.status === 'Não Juntada') items.push(`CND Federal de ${trib.nomeFalecido} não juntada.`);
       });
-      
-      // ... (Resto do código de pendências que já estava correto)
+    
       if (custas.situacao === 'Devidas') {
         if (custas.calculada === 'Não') items.push('Cálculo das custas processuais pendente.');
         if (custas.paga === 'Não') items.push('Pagamento das custas processuais pendente.');
       }
-      //... etc
-
-      return [...new Set(items)]; // Remove duplicados para evitar repetição
-    },
+      return [...new Set(items)];
+    }
   },
-
   watch: {
     state: {
       handler(newState) { this.saveStateToLocalStorage(newState); },
@@ -154,7 +196,7 @@ export default {
           };
         });
         this.state.documentacaoTributaria = newTributos.filter(t => newFalecidos.some(f => f.id === t.falecidoId));
-      
+     
         const newTestamentos = newFalecidos.map(f => {
           const existing = this.state.documentosProcessuais.testamentosCensec.find(t => t.falecidoId === f.id);
           if (existing) {
@@ -176,7 +218,7 @@ export default {
     },
     'hasIncapaz': {
       handler(newVal) {
-     
+   
         this.state.documentosProcessuais.manifestacaoMP.necessaria = newVal;
       },
       immediate: true
@@ -257,7 +299,7 @@ export default {
     },
     hydrateState(loadedState) {
         const freshState = createInitialState();
-      
+       
         if (!freshState.processo.advogados) {
           freshState.processo.advogados = [];
         }
@@ -271,7 +313,7 @@ export default {
                     }
                 }
             }
-           
+          
             for (const key in source) {
                 if (typeof target[key] === 'undefined') {
                     target[key] = source[key];
@@ -326,23 +368,23 @@ export default {
         this.isLoading = true;
         try {
             const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
-            
+          
             if (!apiUrl) {
                 throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento.");
             }
-           
+          
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     state: this.state,
-                   
+               
                     pendencies: this.pendencies
                 }),
             });
            
             if (!response.ok) {
-            
+           
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
                 throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
             }
@@ -356,7 +398,7 @@ export default {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-        
+       
         } catch (error) {
             console.error("Erro ao gerar o PDF:", error);
             alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
@@ -404,11 +446,11 @@ export default {
     const savedTheme = localStorage.getItem('certidaoTheme') || 'light';
     this.theme = savedTheme;
     document.documentElement.setAttribute('data-theme', this.theme);
-   
+  
     this.$nextTick(() => {
       createIcons({ icons }); 
     });
-   
+  
     setInterval(() => {
       this.saveStateToLocalStorage(this.state);
       this.showAutosaveIndicator = true;
@@ -417,7 +459,7 @@ export default {
   },
  
   updated() {
-   
+    
     this.$nextTick(() => {
       createIcons({ icons });
     });
