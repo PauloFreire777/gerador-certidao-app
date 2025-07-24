@@ -133,7 +133,7 @@ export default {
       }
       
       // Pendências de Bens
-     
+    
       bens.imoveis.forEach((bem, i) => {
         const nome = bem.descricao || `Imóvel ${i+1}`;
         if (!bem.idMatricula) items.push(`Matrícula do ${nome} não juntada.`);
@@ -151,7 +151,7 @@ export default {
         if (!bem.idCRLV) items.push(`CRLV do ${nome} não juntado.`);
         if (this.hasIncapaz && bem.avaliado && !bem.idAvaliacao) items.push(`Avaliação Judicial do ${nome} não juntada.`);
       });
-     
+      
       bens.semoventes.forEach((bem, i) => {
         const nome = bem.descricao || `Semovente ${i+1}`;
         if (!bem.idDocumento) items.push(`Documento do ${nome} não juntado.`);
@@ -171,20 +171,24 @@ export default {
         const nome = bem.credor || `Dívida ${i+1}`;
         if (!bem.idDocumento) items.push(`Documento comprobatório da dívida com ${nome} não juntado.`);
       });
-      bens.alvaras.forEach((alvara, i) => {
-        const nome = alvara.finalidade || `Alvará ${i+1}`;
-        if (alvara.idRequerimento) {
-          if (alvara.statusDeferimento === 'Pendente') {
-            items.push(`Análise do pedido de alvará para "${nome}" pendente.`);
-          }
-          if (alvara.statusDeferimento === 'Deferido' && !alvara.idExpedicao) {
-            items.push(`Expedição do alvará deferido para "${nome}" pendente.`);
-          }
-          if (alvara.idExpedicao && alvara.prestouContas === 'Pendente') {
-            items.push(`Prestação de contas do alvará para "${nome}" pendente.`);
-          }
-        }
-      });
+      if (bens.houvePedidoAlvara) {
+          bens.alvaras.forEach((alvara, i) => {
+            const nome = alvara.finalidade || `Alvará ${i+1}`;
+            if (alvara.idRequerimento) {
+              if (alvara.statusDeferimento === 'Pendente') {
+                items.push(`Análise do pedido de alvará para "${nome}" pendente.`);
+              }
+              if (alvara.statusDeferimento === 'Deferido' && !alvara.idExpedicao) {
+                items.push(`Expedição do alvará deferido para "${nome}" pendente.`);
+              }
+              if (alvara.idExpedicao && alvara.prestouContas === 'Pendente') {
+                items.push(`Prestação de contas do alvará para "${nome}" pendente.`);
+              }
+            } else {
+              items.push(`ID do requerimento de alvará para "${nome}" pendente.`);
+            }
+          });
+      }
 
       // Documentos Processuais
       if (documentosProcessuais.primeirasDeclaracoes.status === 'Não Apresentada') items.push('Primeiras Declarações não apresentadas.');
@@ -206,7 +210,7 @@ export default {
     },
     'state.falecidos': {
       handler(newFalecidos) {
-        
+      
         const newTributos = newFalecidos.map(f => {
           const existing = this.state.documentacaoTributaria.find(t => t.falecidoId === f.id);
           if (existing) {
@@ -245,7 +249,7 @@ export default {
     },
     'hasIncapaz': {
       handler(newVal) {
-     
+       
         this.state.documentosProcessuais.manifestacaoMP.necessaria = newVal;
       },
       immediate: true
@@ -272,7 +276,7 @@ export default {
         const section = this.bensSections.find(s => s.key === sectionKey);
         if (section && section.createFunction) {
             this.state.bens[sectionKey].push(section.createFunction());
-        
+       
         }
     },
     removeBem(sectionKey, index) { this.state.bens[sectionKey].splice(index, 1); },
@@ -326,7 +330,7 @@ export default {
     },
     hydrateState(loadedState) {
         const freshState = createInitialState();
-       
+      
         if (!freshState.processo.advogados) {
           freshState.processo.advogados = [];
         }
@@ -340,7 +344,7 @@ export default {
                     }
                 }
             }
-
+           
             for (const key in source) {
                 if (typeof target[key] === 'undefined') {
                     target[key] = source[key];
@@ -395,7 +399,7 @@ export default {
         this.isLoading = true;
         try {
             const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
-           
+          
             if (!apiUrl) {
                 throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento.");
             }
@@ -405,17 +409,17 @@ export default {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     state: this.state,
-                    
+                   
                     pendencies: this.pendencies
                 }),
             });
-
+           
             if (!response.ok) {
-                
+            
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
                 throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
             }
-           
+          
             const pdfBlob = await response.blob();
             const url = window.URL.createObjectURL(pdfBlob);
             const a = document.createElement('a');
@@ -425,7 +429,7 @@ export default {
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
-
+      
         } catch (error) {
             console.error("Erro ao gerar o PDF:", error);
             alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
@@ -473,11 +477,11 @@ export default {
     const savedTheme = localStorage.getItem('certidaoTheme') || 'light';
     this.theme = savedTheme;
     document.documentElement.setAttribute('data-theme', this.theme);
-
+   
     this.$nextTick(() => {
       createIcons({ icons }); 
     });
-
+   
     setInterval(() => {
       this.saveStateToLocalStorage(this.state);
       this.showAutosaveIndicator = true;
@@ -532,7 +536,7 @@ export default {
                             <input type="checkbox" id="cumulativo" v-model="state.processo.cumulativo">
                             <label for="cumulativo">Inventário Cumulativo</label>
                         </div>
-
+                        
                         <fieldset>
                             <legend>Advogados do Processo</legend>
                             <div v-for="(advogado, index) in state.processo.advogados" :key="advogado.id" class="dynamic-card">
@@ -550,7 +554,7 @@ export default {
                             </div>
                             <button @click="addAdvogado" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Advogado</button>
                         </fieldset>
-
+                        
                         <fieldset>
                             <legend>Responsável pela Certidão</legend>
                             <div class="form-group">
@@ -692,96 +696,89 @@ export default {
                             </div>
                         </fieldset>
                     </div>
-
+                   
                     <div v-show="activeTab === 4" class="tab-pane">
                         <h2>5. Bens, Valores e Dívidas</h2>
                         
-                        <fieldset v-for="section in bensSections" :key="section.key">
-                            <legend>{{ section.title }}</legend>
-                            
-                            <div v-if="section.key === 'imoveis'">
-                                <div v-for="(item, index) in state.bens.imoveis" :key="item.id" class="dynamic-card">
-                                    <button @click="removeBem('imoveis', index)" class="btn-remove" title="Remover Imóvel">×</button>
-                                    <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Ex: Lote 1, Quadra 2..."></div>
-                                    <div class="grid-2">
-                                        <div class="form-group"><label>Matrícula nº</label><input type="text" v-model="item.matricula"></div>
-                                        <div class="form-group"><label>ID da Matrícula <span class="required">*</span></label><input type="text" v-model="item.idMatricula" placeholder="ID do documento"></div>
-                                    </div>
-                                    <div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Urbano</option><option>Rural</option></select></div>
-                                    <div v-if="item.tipo === 'Urbano'" class="conditional-section">
-                                        <div class="form-group checkbox-group"><input type="checkbox" :id="`iptu_determinado_${index}`" v-model="item.iptu.determinado"><label :for="`iptu_determinado_${index}`">Foi determinada a juntada de IPTU?</label></div>
-                                        <div v-if="item.iptu.determinado" class="form-group"><label>ID do IPTU</label><input type="text" v-model="item.iptu.id" placeholder="ID do documento"></div>
-                                    </div>
-                                    <div v-if="item.tipo === 'Rural'" class="conditional-section">
-                                        <div class="form-group checkbox-group"><input type="checkbox" :id="`itr_determinado_${index}`" v-model="item.itr.determinado"><label :for="`itr_determinado_${index}`">Foi determinada a juntada de ITR?</label></div>
-                                        <div v-if="item.itr.determinado" class="form-group"><label>ID do ITR</label><input type="text" v-model="item.itr.id" placeholder="ID do documento"></div>
-                                        <div class="form-group checkbox-group"><input type="checkbox" :id="`ccir_determinado_${index}`" v-model="item.ccir.determinado"><label :for="`ccir_determinado_${index}`">Foi determinada a juntada de CCIR?</label></div>
-                                        <div v-if="item.ccir.determinado" class="form-group"><label>ID do CCIR</label><input type="text" v-model="item.ccir.id" placeholder="ID do documento"></div>
-                                        <div class="form-group checkbox-group"><input type="checkbox" :id="`car_determinado_${index}`" v-model="item.car.determinado"><label :for="`car_determinado_${index}`">Foi determinada a juntada de CAR?</label></div>
-                                        <div v-if="item.car.determinado" class="form-group"><label>ID do CAR</label><input type="text" v-model="item.car.id" placeholder="ID do documento"></div>
-                                    </div>
-                                    <div v-if="hasIncapaz" class="conditional-section warning">
-                                        <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_imoveis_${index}`" v-model="item.avaliado"><label :for="`avaliado_imoveis_${index}`">Avaliado Judicialmente</label></div>
-                                        <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do documento"></div>
-                                    </div>
+                        <fieldset>
+                            <legend>Bens Imóveis</legend>
+                            <div v-for="(item, index) in state.bens.imoveis" :key="item.id" class="dynamic-card">
+                                <button @click="removeBem('imoveis', index)" class="btn-remove" title="Remover Imóvel">×</button>
+                                <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Ex: Lote 1, Quadra 2..."></div>
+                                <div class="grid-2">
+                                    <div class="form-group"><label>Matrícula nº</label><input type="text" v-model="item.matricula"></div>
+                                    <div class="form-group"><label>ID da Matrícula <span class="required">*</span></label><input type="text" v-model="item.idMatricula" placeholder="ID do documento"></div>
+                                </div>
+                                <div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Urbano</option><option>Rural</option></select></div>
+                                <div v-if="item.tipo === 'Urbano'" class="conditional-section">
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`iptu_determinado_${index}`" v-model="item.iptu.determinado"><label :for="`iptu_determinado_${index}`">Foi determinada a juntada de IPTU?</label></div>
+                                    <div v-if="item.iptu.determinado" class="form-group"><label>ID do IPTU</label><input type="text" v-model="item.iptu.id" placeholder="ID do documento"></div>
+                                </div>
+                                <div v-if="item.tipo === 'Rural'" class="conditional-section">
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`itr_determinado_${index}`" v-model="item.itr.determinado"><label :for="`itr_determinado_${index}`">Foi determinada a juntada de ITR?</label></div>
+                                    <div v-if="item.itr.determinado" class="form-group"><label>ID do ITR</label><input type="text" v-model="item.itr.id" placeholder="ID do documento"></div>
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`ccir_determinado_${index}`" v-model="item.ccir.determinado"><label :for="`ccir_determinado_${index}`">Foi determinada a juntada de CCIR?</label></div>
+                                    <div v-if="item.ccir.determinado" class="form-group"><label>ID do CCIR</label><input type="text" v-model="item.ccir.id" placeholder="ID do documento"></div>
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`car_determinado_${index}`" v-model="item.car.determinado"><label :for="`car_determinado_${index}`">Foi determinada a juntada de CAR?</label></div>
+                                    <div v-if="item.car.determinado" class="form-group"><label>ID do CAR</label><input type="text" v-model="item.car.id" placeholder="ID do documento"></div>
+                                </div>
+                                <div v-if="hasIncapaz" class="conditional-section warning">
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_imoveis_${index}`" v-model="item.avaliado"><label :for="`avaliado_imoveis_${index}`">Avaliado Judicialmente</label></div>
+                                    <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do documento"></div>
                                 </div>
                             </div>
+                            <button @click="addBem('imoveis')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Imóvel</button>
+                        </fieldset>
 
-                            <div v-else-if="['veiculos', 'semoventes', 'outrosBens'].includes(section.key)">
-                                <div v-for="(item, index) in state.bens[section.key]" :key="item.id" class="dynamic-card">
-                                    <button @click="removeBem(section.key, index)" class="btn-remove" :title="`Remover ${section.singular}`">×</button>
-                                    <div class="form-group">
-                                        <label>Descrição</label>
-                                        <input type="text" v-model="item.descricao" placeholder="Marca, modelo, tipo...">
-                                    </div>
-                                    <div v-if="section.key === 'veiculos'" class="grid-2">
-                                        <div class="form-group">
-                                            <label>Placa</label>
-                                            <input type="text" v-model="item.placa">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Renavam</label>
-                                            <input type="text" v-model="item.renavam">
-                                        </div>
-                                    </div>
-                                    <div v-if="['semoventes', 'outrosBens'].includes(section.key)" class="grid-2">
-                                        <div class="form-group">
-                                            <label>Quantidade</label>
-                                            <input type="text" v-model="item.quantidade">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Valor Estimado (R$)</label>
-                                            <input type="text" v-model="item.valor">
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>ID do Documento ({{ section.key === 'veiculos' ? 'CRLV' : 'Comprobatório' }}) <span class="required">*</span></label>
-                                        <input type="text" v-model="item[section.key === 'veiculos' ? 'idCRLV' : 'idDocumento']" placeholder="ID do documento">
-                                    </div>
-                                    <div v-if="hasIncapaz" class="conditional-section warning">
-                                        <div class="form-group checkbox-group">
-                                            <input type="checkbox" :id="`avaliado_${section.key}_${index}`" v-model="item.avaliado">
-                                            <label :for="`avaliado_${section.key}_${index}`">Avaliado Judicialmente</label>
-                                        </div>
-                                        <div v-if="item.avaliado" class="form-group">
-                                            <label>ID da Avaliação Judicial <span class="required">*</span></label>
-                                            <input type="text" v-model="item.idAvaliacao" placeholder="ID do laudo">
-                                        </div>
-                                    </div>
+                        <fieldset>
+                            <legend>Veículos</legend>
+                            <div v-for="(item, index) in state.bens.veiculos" :key="item.id" class="dynamic-card">
+                                <button @click="removeBem('veiculos', index)" class="btn-remove" title="Remover Veículo">×</button>
+                                <div class="form-group"><label>Descrição</label><input type="text" v-model="item.descricao" placeholder="Marca, modelo, ano..."></div>
+                                <div class="grid-2">
+                                    <div class="form-group"><label>Placa</label><input type="text" v-model="item.placa"></div>
+                                    <div class="form-group"><label>Renavam</label><input type="text" v-model="item.renavam"></div>
+                                </div>
+                                <div class="form-group"><label>ID do CRLV <span class="required">*</span></label><input type="text" v-model="item.idCRLV" placeholder="ID do documento"></div>
+                                <div v-if="hasIncapaz" class="conditional-section warning">
+                                    <div class="form-group checkbox-group"><input type="checkbox" :id="`avaliado_veiculos_${index}`" v-model="item.avaliado"><label :for="`avaliado_veiculos_${index}`">Avaliado Judicialmente</label></div>
+                                    <div v-if="item.avaliado" class="form-group"><label>ID da Avaliação Judicial <span class="required">*</span></label><input type="text" v-model="item.idAvaliacao" placeholder="ID do laudo"></div>
                                 </div>
                             </div>
-                            
-                            <div v-else-if="['valoresResiduais', 'dividas'].includes(section.key)">
-                                <div v-for="(item, index) in state.bens[section.key]" :key="item.id" class="dynamic-card">
-                                    <button @click="removeBem(section.key, index)" class="btn-remove" :title="`Remover ${section.singular}`">×</button>
-                                    <div v-if="section.key === 'valoresResiduais'"><div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Conta Bancária</option><option>FGTS</option><option>PIS/PASEP</option><option>Ações</option></select></div><div class="form-group"><label>Instituição</label><input type="text" v-model="item.instituicao"></div></div>
-                                    <div v-if="section.key === 'dividas'"><div class="form-group"><label>Credor</label><input type="text" v-model="item.credor"></div><div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Tributária</option><option>Contratual</option><option>Alimentar</option></select></div></div>
-                                    <div class="form-group"><label>Valor (R$)</label><input type="text" v-model="item.valor"></div>
-                                    <div class="form-group"><label>ID do Documento Comprobatório</label><input type="text" v-model="item.idDocumento" placeholder="ID do extrato, contrato, etc."></div>
-                                </div>
-                            </div>
+                            <button @click="addBem('veiculos')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Veículo</button>
+                        </fieldset>
 
-                            <div v-else-if="section.key === 'alvaras'">
+                        <fieldset>
+                            <legend>Valores Residuais</legend>
+                             <div v-for="(item, index) in state.bens.valoresResiduais" :key="item.id" class="dynamic-card">
+                                <button @click="removeBem('valoresResiduais', index)" class="btn-remove" title="Remover Valor">×</button>
+                                <div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Conta Bancária</option><option>FGTS</option><option>PIS/PASEP</option><option>Ações</option></select></div>
+                                <div class="form-group"><label>Instituição</label><input type="text" v-model="item.instituicao"></div>
+                                <div class="form-group"><label>Valor (R$)</label><input type="text" v-model="item.valor"></div>
+                                <div class="form-group"><label>ID do Documento Comprobatório</label><input type="text" v-model="item.idDocumento" placeholder="ID do extrato, etc."></div>
+                            </div>
+                            <button @click="addBem('valoresResiduais')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Valor</button>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend>Dívidas do Espólio</legend>
+                            <div v-for="(item, index) in state.bens.dividas" :key="item.id" class="dynamic-card">
+                                <button @click="removeBem('dividas', index)" class="btn-remove" title="Remover Dívida">×</button>
+                                <div class="form-group"><label>Credor</label><input type="text" v-model="item.credor"></div>
+                                <div class="form-group"><label>Tipo</label><select v-model="item.tipo"><option>Tributária</option><option>Contratual</option><option>Alimentar</option></select></div>
+                                <div class="form-group"><label>Valor (R$)</label><input type="text" v-model="item.valor"></div>
+                                <div class="form-group"><label>ID do Documento Comprobatório</label><input type="text" v-model="item.idDocumento" placeholder="ID do contrato, notificação, etc."></div>
+                            </div>
+                           <button @click="addBem('dividas')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Dívida</button>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend>Alvarás</legend>
+                            <div class="form-group checkbox-group">
+                                <input type="checkbox" id="houvePedidoAlvara" v-model="state.bens.houvePedidoAlvara">
+                                <label for="houvePedidoAlvara">Houve pedido de alvará no processo?</label>
+                            </div>
+                            <div v-if="state.bens.houvePedidoAlvara" class="conditional-section">
                                 <div v-for="(item, index) in state.bens.alvaras" :key="item.id" class="dynamic-card">
                                     <button @click="removeBem('alvaras', index)" class="btn-remove" title="Remover Alvará">×</button>
                                     <div class="form-group"><label>Finalidade do Alvará</label><input type="text" v-model="item.finalidade" placeholder="Ex: Venda de veículo, levantamento de valores"></div>
@@ -792,9 +789,9 @@ export default {
                                         <div v-if="item.idExpedicao" class="form-group"><label>Prestação de Contas</label><select v-model="item.prestouContas"><option>Não aplicável</option><option>Pendente</option><option>Sim</option><option>Não</option></select></div>
                                     </div>
                                 </div>
+                                <button @click="addBem('alvaras')" class="btn-add-small"><i data-lucide="plus"></i> Adicionar Alvará</button>
                             </div>
-
-                            <button @click="addBem(section.key)" class="btn-add-small"><i data-lucide="plus"></i> Adicionar {{ section.singular }}</button>
+                        
                         </fieldset>
                     </div>
 
@@ -838,7 +835,7 @@ export default {
                                     </div>
                                 </div>
                             </div>
-
+                            
                             <div v-if="hasIncapaz" class="doc-card">
                                 <h4><i data-lucide="scale"></i> Manifestação do Ministério Público</h4>
                                 <div class="doc-content">
@@ -914,90 +911,65 @@ export default {
             <div id="preview-panel" class="preview-panel">
                 <div class="preview-header">
                     <div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div>
-                    <h1>CERTIDÃO DE REGULARIDADE</h1>
-                    <h2 class="subtitle">INVENTÁRIO</h2>
+                    <h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2>
                 </div>
                 <div class="preview-content">
                     <div class="preview-section pendencies-section" v-if="pendencies.length > 0">
                         <h3><i data-lucide="alert-triangle"></i> PENDÊNCIAS</h3>
                         <ul class="pendencies-list"><li v-for="(pendency, index) in pendencies" :key="index">{{ pendency }}</li></ul>
                     </div>
-
+                    
                     <div class="preview-section" v-if="state.processo.numero">
                         <h3><i data-lucide="folder-kanban"></i> 1. Dados do Processo</h3>
                         <div class="preview-card">
                             <p><strong>Número do Processo:</strong><span>{{ state.processo.numero }}</span></p>
-                            
-                            <div v-if="state.processo.advogados.length" class="info-advogado" style="margin-top: 1rem;">
-                                <p style="margin:0;"><strong>Advogados no Processo:</strong></p>
-                                <ul style="list-style: none; padding-left: 10px; margin-top: 5px;"><li v-for="adv in state.processo.advogados" :key="adv.id"><span>- {{ adv.nome }} (OAB: {{ adv.oab }})</span></li></ul>
-                            </div>
+                            <div v-if="state.processo.advogados.length" class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados no Processo:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;"><li v-for="adv in state.processo.advogados" :key="adv.id"><span>- {{ adv.nome }} (OAB: {{ adv.oab }})</span></li></ul></div>
                         </div>
                     </div>
-
                     <div class="preview-section" v-if="state.falecidos.length">
                         <h3><i data-lucide="user-minus"></i> 2. De Cujus</h3>
-                        <div v-for="f in state.falecidos" :key="f.id" class="preview-card"><p><strong>Nome:</strong><span>{{ f.nome || 'Não informado' }}</span></p><p><strong>Data do Falecimento:</strong><span>{{ formatDate(f.dataFalecimento) }}</span></p></div>
+                        <div v-for="f in state.falecidos" :key="f.id" class="preview-card">
+                            <p><strong>Nome:</strong><span>{{ f.nome || 'Não informado' }}</span></p>
+                            <p><strong>Data do Falecimento:</strong><span>{{ formatDate(f.dataFalecimento) }}</span></p>
+                            <p><strong>Docs. Pessoais (ID):</strong><span>{{ f.documentos || 'Não informado' }}</span></p>
+                            <p><strong>Cert. Óbito (ID):</strong><span>{{ f.idCertidaoObito || 'Não informado' }}</span></p>
+                        </div>
                     </div>
                     <div class="preview-section" v-if="state.inventariante.nome || state.herdeiros.filter(h => h.nome).length">
                         <h3><i data-lucide="users"></i> 3. Inventariante, Herdeiros e Sucessores</h3>
                         <div v-if="state.inventariante.nome" class="preview-card">
                             <h4>Inventariante</h4>
                             <p><strong>Nome:</strong><span>{{ state.inventariante.nome }}</span></p>
+                            <p><strong>Parentesco:</strong><span>{{ state.inventariante.parentesco || 'Não informado' }}</span></p>
+                            <p><strong>Docs. Pessoais (ID):</strong><span>{{ state.inventariante.documentos || 'Não informado' }}</span></p>
+                            <p><strong>Termo de Comp. (ID):</strong><span>{{ state.inventariante.idTermoCompromisso || 'Não informado' }}</span></p>
+                            <div v-if="state.inventariante.idProcuracao" class="info-procuracao"><p><strong>Procuração (ID):</strong><span>{{ state.inventariante.idProcuracao }}</span></p></div>
                             <div v-if="state.inventariante.advogadoId" class="info-advogado"><p><strong>Advogado(a):</strong><span>{{ getAdvogadoNome(state.inventariante.advogadoId) }}</span></p></div>
                         </div>
                         <heir-preview-group v-if="state.herdeiros.filter(h => h.nome).length" :heirs="state.herdeiros.filter(h => h.nome)" :level="0" :advogados="state.processo.advogados"></heir-preview-group>
                     </div>
-
+                    <div class="preview-section" v-if="state.renuncia.houveRenuncia && state.renuncia.renunciantes.length > 0">
+                        <h3><i data-lucide="file-x-2"></i> Renúncia de Direitos</h3>
+                        <div v-for="r in state.renuncia.renunciantes" :key="r.herdeiroId" class="preview-card">
+                            <p><strong>Renunciante:</strong><span>{{ getHeirNameById(r.herdeiroId) }}</span></p>
+                            <p><strong>Tipo:</strong><span>{{ r.tipo }}</span></p>
+                            <p><strong>Escritura/Termo (ID):</strong><span>{{ r.idEscritura || 'Não informado' }}</span></p>
+                        </div>
+                    </div>
+                    <div class="preview-section" v-if="state.cessao.houveCessao && state.cessao.cessionarios.length > 0">
+                        <h3><i data-lucide="arrow-right-left"></i> Cessão de Direitos</h3>
+                        <div class="preview-card">
+                            <p><strong>Escritura de Cessão (ID):</strong><span>{{ state.cessao.idEscritura || 'Não informado' }}</span></p>
+                            <div v-for="c in state.cessao.cessionarios" :key="c.id" class="preview-sub-card"><p><strong>Cessionário:</strong><span>{{ c.nome }}</span></p></div>
+                        </div>
+                    </div>
                     <div class="preview-section" v-if="hasBens">
                         <h3><i data-lucide="gem"></i> Relação de Bens, Direitos e Dívidas</h3>
-                        <div v-if="state.bens.imoveis.length">
-                            <h4>Bens Imóveis</h4>
-                            <div v-for="item in state.bens.imoveis" :key="item.id" class="preview-card-small">
-                                <p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Matrícula: {{ item.matricula || 'N/A' }})</span></p>
-                                <p><strong>ID da Matrícula:</strong> <span>{{ item.idMatricula || 'Pendente' }}</span></p>
-                                <p v-if="item.tipo === 'Urbano' && item.iptu.determinado"><strong>IPTU:</strong> <span>{{ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }}</span></p>
-                                <div v-if="item.tipo === 'Rural'">
-                                    <p v-if="item.itr.determinado"><strong>ITR:</strong> <span>{{ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }}</span></p>
-                                    <p v-if="item.ccir.determinado"><strong>CCIR:</strong> <span>{{ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }}</span></p>
-                                    <p v-if="item.car.determinado"><strong>CAR:</strong> <span>{{ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }}</span></p>
-                                </div>
-                                <p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p>
-                            </div>
-                        </div>
-
-                        <div v-if="state.bens.veiculos.length">
-                            <h4>Veículos</h4>
-                            <div v-for="item in state.bens.veiculos" :key="item.id" class="preview-card-small">
-                                <p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Placa: {{item.placa || 'N/A'}})</span></p>
-                                <p><strong>ID do CRLV:</strong> <span>{{ item.idCRLV || 'Pendente' }}</span></p>
-                                <p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p>
-                            </div>
-                        </div>
-                        <div v-if="state.bens.valoresResiduais.length">
-                            <h4>Valores Residuais</h4>
-                            <div v-for="item in state.bens.valoresResiduais" :key="item.id" class="preview-card-small">
-                                <p><strong>Tipo:</strong> <span>{{ item.tipo }}</span></p>
-                                <p><strong>ID do Doc.:</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p>
-                            </div>
-                        </div>
-                        <div v-if="state.bens.dividas.length">
-                            <h4>Dívidas do Espólio</h4>
-                            <div v-for="item in state.bens.dividas" :key="item.id" class="preview-card-small">
-                                <p><strong>Credor:</strong> <span>{{ item.credor }}</span></p>
-                                <p><strong>ID do Doc.:</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p>
-                            </div>
-                        </div>
-                        <div v-if="state.bens.alvaras.length">
-                            <h4>Alvarás</h4>
-                            <div v-for="item in state.bens.alvaras" :key="item.id" class="preview-card-small">
-                                <p><strong>Finalidade:</strong> <span>{{ item.finalidade }}</span></p>
-                                <p><strong>Requerimento:</strong> <span>{{ item.idRequerimento ? `ID: ${item.idRequerimento}` : 'Não requerido' }}</span></p>
-                                <p v-if="item.idRequerimento"><strong>Status:</strong> <span>{{ item.statusDeferimento }}</span></p>
-                                <p v-if="item.statusDeferimento === 'Deferido'"><strong>Expedição:</strong> <span>{{ item.idExpedicao || 'Pendente' }}</span></p>
-                                <p v-if="item.idExpedicao"><strong>Prestou Contas:</strong> <span>{{ item.prestouContas }}</span></p>
-                            </div>
-                        </div>
+                        <div v-if="state.bens.imoveis.length"><h4>Bens Imóveis</h4><div v-for="item in state.bens.imoveis" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Matrícula: {{ item.matricula || 'N/A' }})</span></p><p><strong>ID da Matrícula:</strong> <span>{{ item.idMatricula || 'Pendente' }}</span></p><p v-if="item.tipo === 'Urbano' && item.iptu.determinado"><strong>IPTU:</strong> <span>{{ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }}</span></p><div v-if="item.tipo === 'Rural'"><p v-if="item.itr.determinado"><strong>ITR:</strong> <span>{{ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }}</span></p><p v-if="item.ccir.determinado"><strong>CCIR:</strong> <span>{{ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }}</span></p><p v-if="item.car.determinado"><strong>CAR:</strong> <span>{{ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }}</span></p></div><p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p></div></div>
+                        <div v-if="state.bens.veiculos.length"><h4>Veículos</h4><div v-for="item in state.bens.veiculos" :key="item.id" class="preview-card-small"><p><strong>Descrição:</strong> <span>{{ item.descricao || 'N/A' }} (Placa: {{item.placa || 'N/A'}})</span></p><p><strong>ID do CRLV:</strong> <span>{{ item.idCRLV || 'Pendente' }}</span></p><p v-if="hasIncapaz && item.avaliado" class="warning-text"><strong>Avaliação Judicial:</strong> <span>{{ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }}</span></p></div></div>
+                        <div v-if="state.bens.valoresResiduais.length"><h4>Valores Residuais</h4><div v-for="item in state.bens.valoresResiduais" :key="item.id" class="preview-card-small"><p><strong>Tipo:</strong> <span>{{ item.tipo }}</span></p><p><strong>Doc. (ID):</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p></div></div>
+                        <div v-if="state.bens.dividas.length"><h4>Dívidas do Espólio</h4><div v-for="item in state.bens.dividas" :key="item.id" class="preview-card-small"><p><strong>Credor:</strong> <span>{{ item.credor }}</span></p><p><strong>Doc. (ID):</strong> <span>{{ item.idDocumento || 'Pendente' }}</span></p></div></div>
+                        <div v-if="state.bens.houvePedidoAlvara && state.bens.alvaras.length"><h4>Alvarás</h4><div v-for="item in state.bens.alvaras" :key="item.id" class="preview-card-small"><p><strong>Finalidade:</strong> <span>{{ item.finalidade }}</span></p><p><strong>Requerimento:</strong> <span>{{ item.idRequerimento ? `ID: ${item.idRequerimento}` : 'Não requerido' }}</span></p><p v-if="item.idRequerimento"><strong>Status:</strong> <span>{{ item.statusDeferimento }}</span></p><p v-if="item.statusDeferimento === 'Deferido'"><strong>Expedição:</strong> <span>{{ item.idExpedicao || 'Pendente' }}</span></p><p v-if="item.idExpedicao"><strong>Prestou Contas:</strong> <span>{{ item.prestouContas }}</span></p></div></div>
                     </div>
                 </div>
                 <div class="preview-footer">

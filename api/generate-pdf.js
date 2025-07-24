@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL FASE 2
+// api/generate-pdf.js - VERSÃO FINAL COM CORREÇÃO DE CORROMPIMENTO
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -30,7 +30,7 @@ const css = `
     .preview-card, .preview-card-small { page-break-inside: avoid; border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
     .preview-card p, .preview-card-small p { margin-bottom: 0.5rem; display: flex; align-items: flex-start; }
     .preview-card p:last-child, .preview-card-small p:last-child { margin-bottom: 0; }
-    .preview-card strong, .preview-card-small strong { font-weight: 600; font-family: var(--font-sans); color: #555; margin-right: 8px; min-width: 150px; }
+    .preview-card strong, .preview-card-small strong { font-weight: 600; font-family: var(--font-sans); color: #555; margin-right: 8px; min-width: 180px; }
     .preview-card p span, .preview-card-small p span { flex: 1; color: #333; }
 
     .info-procuracao, .info-advogado { font-size: 9pt !important; padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem; border-left-width: 3px; border-left-style: solid; }
@@ -62,7 +62,6 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
         const advogado = getAdvogadoById(h.advogadoId, allAdvogados);
         const curadorAdvogado = getAdvogadoById(h.curador.advogadoId, allAdvogados);
         const conjugeAdvogado = getAdvogadoById(h.conjuge.advogadoId, allAdvogados);
-       
         return `
         <div class="preview-card" style="margin-left: ${level * 20}px;">
             <p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p>
@@ -94,15 +93,15 @@ export default async function handler(req, res) {
         }
         if (data.falecidos.length > 0) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. De Cujus</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome}</span></p><p><strong>Data do Óbito:</strong><span>${formatDate(f.dataFalecimento)}</span></p></div>`).join('')}</div>`;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. De Cujus</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome}</span></p><p><strong>Data do Óbito:</strong><span>${formatDate(f.dataFalecimento)}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${f.documentos || 'Não informado'}</span></p><p><strong>Cert. Óbito (ID):</strong><span>${f.idCertidaoObito || 'Não informado'}</span></p></div>`).join('')}</div>`;
         }
         if (data.inventariante.nome || herdeirosValidos.length > 0) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p><p><strong>Parentesco:</strong><span>${data.inventariante.parentesco || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${data.inventariante.documentos || 'Não informado'}</span></p><p><strong>Termo de Comp. (ID):</strong><span>${data.inventariante.idTermoCompromisso || 'Não informado'}</span></p>${data.inventariante.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${data.inventariante.idProcuracao}</span></p></div>` : ''}${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
         }
         if (data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, herdeirosValidos)}</span></p><p><strong>Tipo:</strong><span>${r.tipo}</span></p><p><strong>Escritura/Termo:</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>`;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, herdeirosValidos)}</span></p><p><strong>Tipo:</strong><span>${r.tipo}</span></p><p><strong>Escritura/Termo (ID):</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>`;
         }
         if (data.cessao.houveCessao && data.cessao.cessionarios.length > 0) {
             sectionCounter++;
@@ -110,13 +109,12 @@ export default async function handler(req, res) {
         }
         if (hasBens) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section">
-                <h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
                 ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
                 ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Placa: ${item.placa || 'N/A'})</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && item.avaliado ? `<p><strong>Avaliação Judicial:</strong> <span>${ item.idAvaliacao ? `Realizada (ID: ${item.idAvaliacao})` : 'ID Pendente' }</span></p>` : ''}</div>`).join('')}` : ''}
                 ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
                 ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
-                ${data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
+                ${data.bens.houvePedidoAlvara && data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
             </div>`;
         }
         sectionCounter++;
@@ -146,9 +144,13 @@ export default async function handler(req, res) {
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1.5cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' } });
-       
+        
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Adicionamos o Content-Length e trocamos .send() por .end() para garantir a integridade do arquivo binário.
         res.setHeader('Content-Type', 'application/pdf');
-        res.status(200).send(pdfBuffer);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        res.status(200).end(pdfBuffer); 
+        // --- FIM DA CORREÇÃO ---
         
     } catch (error) {
         console.error('Erro ao gerar o PDF:', error);

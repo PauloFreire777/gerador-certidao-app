@@ -1,4 +1,4 @@
-// Arquivo: src/utils/stateHelpers.js - VERSÃO FASE 2
+// Arquivo: src/utils/stateHelpers.js - VERSÃO CORRIGIDA E COMPLETA
 
 // Função para criar um novo advogado
 export const createAdvogadoObject = () => ({
@@ -72,9 +72,10 @@ export const createInitialState = () => ({
         veiculos: [],
         semoventes: [],
         outrosBens: [],
-        valoresResiduais: [], // Atualizado
-        dividas: [],           // Atualizado
-        alvaras: []            // Atualizado
+        valoresResiduais: [],
+        dividas: [],
+        houvePedidoAlvara: false, // NOVO CAMPO DE CONTROLE
+        alvaras: []
     },
     documentosProcessuais: {
         primeirasDeclaracoes: { status: 'Não Apresentada', id: '' },
@@ -161,13 +162,12 @@ export const createOutroBem = () => ({
     idDocumento: ''
 });
 
-// NOVO: Funções para Valores, Dívidas e Alvarás
 export const createValorResidual = () => ({
     id: crypto.randomUUID(),
     tipo: 'Conta Bancária',
     instituicao: '',
     valor: '',
-    idDocumento: '' // Novo campo
+    idDocumento: ''
 });
 
 export const createDivida = () => ({
@@ -175,7 +175,7 @@ export const createDivida = () => ({
     credor: '',
     tipo: 'Tributária',
     valor: '',
-    idDocumento: '' // Novo campo
+    idDocumento: ''
 });
 
 export const createAlvara = () => ({
