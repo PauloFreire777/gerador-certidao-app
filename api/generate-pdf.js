@@ -11,7 +11,10 @@ const css = `
         --font-serif: 'Lora', serif; --border-radius: 8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: var(--font-serif); color: #1a1a1a; line-height: 1.6; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: var(--font-serif); color: #1a1a1a; line-height: 1.6; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; 
+    orphans: 3;
+    widows: 3;
+}
     
     .preview-header { text-align: center; background-color: #2c3e50; color: white; padding: 1.5rem; }
     .header-text p { font-family: var(--font-sans); font-weight: 500; margin: 0; line-height: 1.3; font-size: 10pt; }
@@ -19,9 +22,24 @@ const css = `
     .preview-header h1 { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: white; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); }
     .preview-header h2.subtitle { font-family: var(--font-sans); font-size: 1.1rem; opacity: 0.8; font-weight: 400; margin-top: 0.25rem; }
 
-    .preview-section { padding: 0 1.5rem; margin-bottom: 0.25rem; page-break-inside: avoid; }
+    .preview-section {
+    padding: 0 1.5rem;
+    margin-bottom: 0.25rem;
+    page-break-before: auto;
+    page-break-after: avoid;
+    break-inside: auto;
+}
+
     .preview-section h3, .preview-section h4 { page-break-after: avoid; }
-    .preview-card, .preview-card-small, .preview-sub-card { page-break-inside: avoid; }
+    .preview-card, .preview-card-small {
+    break-inside: avoid-page;
+    page-break-inside: auto;
+    overflow: visible;
+}
+.preview-sub-card {
+    break-inside: auto !important;
+}
+
     .preview-footer { page-break-before: auto; }
 
     .preview-section h3 { font-family: var(--font-sans); font-size: 1.2rem; font-weight: 600; color: var(--primary-color); padding-bottom: 0.5rem; margin: 1rem 0; border-bottom: 2px solid var(--primary-color); }
