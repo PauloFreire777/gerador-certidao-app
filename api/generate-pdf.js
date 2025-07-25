@@ -171,6 +171,7 @@ export default async function handler(req, res) {
         const finalHtml = `<html><head><meta charset="UTF-8"><style>${css}</style></head><body><div id="pdf-container"><div class="preview-header"><div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div><h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2></div><div class="preview-content">${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}${htmlSections}</div><div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div></div></body></html>`;
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
+        await page.emulateMediaType('print'); 
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '1.5cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' } });
         
         res.setHeader('Content-Type', 'application/pdf');
