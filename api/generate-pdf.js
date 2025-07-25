@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL COM FLUXO SUAVE E SEM BUGS
+// api/generate-pdf.js - VERSÃO FINAL COM FLUXO SUAVE E PENDÊNCIAS EM COLUNA ÚNICA
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -42,13 +42,15 @@ const css = `
     .preview-header h1 { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: white; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2); }
     .preview-header h2.subtitle { font-family: var(--font-sans); font-size: 1.1rem; opacity: 0.8; font-weight: 400; margin-top: 0.25rem; }
     
-    .preview-section { padding: 1rem 1.5rem 0.25rem 1.5rem; } /* Adicionado padding superior para espaçamento */
+    .preview-section { padding: 1rem 1.5rem 0.25rem 1.5rem; }
     .preview-section h3 { font-family: var(--font-sans); font-size: 1.2rem; font-weight: 600; color: var(--primary-color); padding-bottom: 0.5rem; margin: 1.5rem 0 1rem 0; border-bottom: 2px solid var(--primary-color); }
     .preview-section h4 { font-family: var(--font-sans); font-size: 1rem; font-weight: 600; color: #444; margin-top: 1.25rem; margin-bottom: 0.75rem; padding-bottom: 0.25rem; border-bottom: 1px solid #eee; }
     
     .pendencies-section { border: 1px solid var(--danger-color); background-color: rgba(192, 57, 43, 0.05); padding: 1.5rem; margin: 1rem 1.5rem; }
     .pendencies-section h3 { color: var(--danger-color); border-bottom-color: var(--danger-color); margin: 0 0 1rem 0; }
-    .pendencies-list { list-style-type: none; padding-left: 0; margin: 0; columns: 1; /* CORRIGIDO: Voltando para uma coluna */ }
+    
+    /* CORRIGIDO: Voltando para uma coluna */
+    .pendencies-list { list-style-type: none; padding-left: 0; margin: 0; columns: 1; }
     .pendencies-list li { padding: 0.25rem; margin-bottom: 0.25rem; font-family: var(--font-sans); font-size: 9pt; }
     
     .preview-card, .preview-card-small { border: 1px solid #e0e0e0; padding: 1rem; margin-bottom: 1rem; border-radius: var(--border-radius); }
@@ -85,13 +87,11 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
         const advogado = getAdvogadoById(h.advogadoId, allAdvogados);
         const curadorAdvogado = getAdvogadoById(h.curador.advogadoId, allAdvogados);
         const conjugeAdvogado = getAdvogadoById(h.conjuge.advogadoId, allAdvogados);
-        
         const procuracaoHtml = h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : '';
         const advogadoHtml = advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : '';
         const incapazHtml = h.estado === 'Incapaz' ? `<div class="preview-sub-card warning"><p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p><p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p>${h.curador.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Curador (ID):</strong> <span>${h.curador.idProcuracao}</span></p></div>` : ''}${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}</div>` : '';
         const conjugeHtml = (h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card"><p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>${h.conjuge.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Cônjuge (ID):</strong> <span>${h.conjuge.idProcuracao}</span></p></div>` : ''}${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}</div>` : '';
         const falecidoHtml = (h.estado === 'Falecido') ? `<div class="preview-sub-card danger"><p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p>${(h.representantes && h.representantes.length > 0) ? `<p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}` : ''}</div>` : '';
-
         return `<div class="preview-card" style="margin-left: ${level * 20}px;"><p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p><p><strong>Docs. Pessoais (ID):</strong> <span>${h.documentos || 'Não informado'}</span></p>${procuracaoHtml}${advogadoHtml}${incapazHtml}${conjugeHtml}${falecidoHtml}</div>`;
     }).join('');
 }
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
         let sectionCounter = 0;
         let htmlSections = '';
-
+        
         if (data.processo.numero) {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p>${data.processo.cumulativo ? `<p><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>` : ''}${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
@@ -162,7 +162,6 @@ export default async function handler(req, res) {
           sectionCounter++;
           htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
         }
-
 
         browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
