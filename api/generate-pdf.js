@@ -14,6 +14,9 @@ const css = `
     body { font-family: var(--font-serif); color: #1a1a1a; line-height: 1.6; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; 
     orphans: 3;
     widows: 3;
+
+    orphans: 2;
+    widows: 2;
 }
     
     .preview-header { text-align: center; background-color: #2c3e50; color: white; padding: 1.5rem; }
@@ -26,7 +29,7 @@ const css = `
     padding: 0 1.5rem;
     margin-bottom: 0.25rem;
     page-break-before: auto;
-    page-break-after: avoid;
+    page-break-after: auto;
     break-inside: auto;
 }
 
