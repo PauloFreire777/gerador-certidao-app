@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL COM FLUXO SUAVE E PENDÊNCIAS EM COLUNA ÚNICA
+// api/generate-pdf.js - VERSÃO FINAL COM RODAPÉ, FLUIDEZ E CORREÇÕES
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -19,21 +19,9 @@ const css = `
     }
     
     /* --- CONTROLE DE QUEBRA DE PÁGINA "SUAVE" --- */
-    
-    /* Evita que um título fique órfão no final de uma página */
-    .preview-section h3, .preview-section h4 { 
-        break-after: avoid; 
-    }
-    
-    /* ESSENCIAL: Impede que os cards de conteúdo se quebrem no meio */
-    .preview-card, .preview-card-small, .preview-sub-card, .pendencies-list li { 
-        break-inside: avoid; 
-    }
-    
-    /* Tenta manter o rodapé junto do último bloco de conteúdo */
-    .preview-footer { 
-        break-before: avoid; 
-    }
+    .preview-section h3, .preview-section h4 { break-after: avoid; }
+    .preview-card, .preview-card-small, .preview-sub-card, .pendencies-list li { break-inside: avoid; }
+    .preview-footer { break-before: avoid; }
 
     /* --- ESTILOS VISUAIS --- */
     .preview-header { text-align: center; background-color: #2c3e50; color: white; padding: 1.5rem; }
@@ -68,7 +56,7 @@ const css = `
     .preview-sub-card.warning { border-left-color: var(--warning-color); background-color: rgba(241, 196, 15, 0.05); }
     .preview-sub-card.danger { border-left-color: var(--danger-color); background-color: rgba(231, 76, 60, 0.05); }
     
-    .preview-footer { padding: 2rem 1.5rem 0 1.5rem; border-top: 1px solid #ccc; margin-top: 2rem; text-align: center; }
+    .main-footer { padding: 2rem 1.5rem 0 1.5rem; border-top: 1px solid #ccc; margin-top: 2rem; text-align: center; }
     .signature-line { border-top: 1px solid #000; width: 350px; padding-top: 0.5rem; display: inline-block; }
     .signature-name { font-weight: 600; font-size: 11pt; overflow-wrap: break-word; }
     .signature-title { font-size: 10pt; color: #555; }
@@ -112,6 +100,7 @@ export default async function handler(req, res) {
         let sectionCounter = 0;
         let htmlSections = '';
         
+        // Lógica de geração de seções (sem duplicação)
         if (data.processo.numero) {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p>${data.processo.cumulativo ? `<p><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>` : ''}${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
@@ -165,6 +154,18 @@ export default async function handler(req, res) {
 
         browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
+        
+        // NOVO: Template do Rodapé
+        const footerTemplate = `
+            <div style="font-family: 'Inter', sans-serif; font-size: 8pt; color: #777; width: 100%; display: flex; justify-content: space-between; padding: 0 1.5cm; box-sizing: border-box;">
+                <span>Este documento foi gerado eletronicamente pelo Sistema CertidãoPRO</span>
+                <span>
+                    Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - 
+                    Página <span class="pageNumber"></span> de <span class="totalPages"></span>
+                </span>
+            </div>
+        `;
+        
         const finalHtml = `
             <html>
                 <head>
@@ -188,7 +189,7 @@ export default async function handler(req, res) {
                             ${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}
                             ${htmlSections}
                         </div>
-                        <div class="preview-footer">
+                        <div class="main-footer">
                             <div class="signature-line">
                                 <p class="signature-name">${data.processo.responsavel.nome || '________________________________'}</p>
                                 <p class="signature-title">${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p>
@@ -200,10 +201,19 @@ export default async function handler(req, res) {
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         await page.emulateMediaType('print'); 
+        
+        // CORRIGIDO: Opções do PDF com o novo rodapé
         const pdfBuffer = await page.pdf({
             format: 'A4',
             printBackground: true,
-            margin: { top: '2cm', right: '1.5cm', bottom: '2cm', left: '1.5cm' }
+            margin: { 
+                top: '2cm', 
+                right: '1.5cm', 
+                bottom: '2cm', // Margem para dar espaço ao rodapé
+                left: '1.5cm' 
+            },
+            displayHeaderFooter: true,
+            footerTemplate: footerTemplate
         });
         
         res.setHeader('Content-Type', 'application/pdf');
