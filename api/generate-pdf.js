@@ -97,26 +97,26 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
         const curadorAdvogado = getAdvogadoById(h.curador.advogadoId, allAdvogados);
         const conjugeAdvogado = getAdvogadoById(h.conjuge.advogadoId, allAdvogados);
         return `
-        <div class="preview-card" style="margin-left: ${level * 20}px;">
+        <div class="preview-card no-break" style="margin-left: ${level * 20}px;">
             <p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p>
             <p><strong>Docs. Pessoais (ID):</strong> <span>${h.documentos || 'Não informado'}</span></p>
             ${h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : ''}
             ${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}
             
-            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning">
+            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning no-break">
                 <p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>
                 <p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p>
                 ${h.curador.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Curador (ID):</strong> <span>${h.curador.idProcuracao}</span></p></div>` : ''}
                 ${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}
             </div>` : ''}
 
-            ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card">
+            ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card no-break">
                 <p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>
                 ${h.conjuge.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Cônjuge (ID):</strong> <span>${h.conjuge.idProcuracao}</span></p></div>` : ''}
                 ${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}
             </div>` : ''}
 
-            ${(h.estado === 'Falecido') ? `<div class="preview-sub-card danger">
+            ${(h.estado === 'Falecido') ? `<div class="preview-sub-card danger no-break">
                 <p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p>
                 ${(h.representantes && h.representantes.length > 0) ? `<p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}` : ''}
             </div>` : ''}
@@ -148,7 +148,7 @@ export default async function handler(req, res) {
         }
         if (data.inventariante.nome || herdeirosValidos.length > 0) {
             sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p><p><strong>Parentesco:</strong><span>${data.inventariante.parentesco || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${data.inventariante.documentos || 'Não informado'}</span></p><p><strong>Termo de Comp. (ID):</strong><span>${data.inventariante.idTermoCompromisso || 'Não informado'}</span></p>${data.inventariante.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${data.inventariante.idProcuracao}</span></p></div>` : ''}${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
+            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card no-break"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p><p><strong>Parentesco:</strong><span>${data.inventariante.parentesco || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${data.inventariante.documentos || 'Não informado'}</span></p><p><strong>Termo de Comp. (ID):</strong><span>${data.inventariante.idTermoCompromisso || 'Não informado'}</span></p>${data.inventariante.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${data.inventariante.idProcuracao}</span></p></div>` : ''}${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados) ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).nome} (OAB: ${getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados).oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
         }
         if (data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0) {
             sectionCounter++;
@@ -158,7 +158,7 @@ export default async function handler(req, res) {
             sectionCounter++;
             const cessionariosHtml = data.cessao.cessionarios.map(c => {
                 const advogado = getAdvogadoById(c.advogadoId, data.processo.advogados);
-                return `<div class="preview-sub-card"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${c.documentos || 'Não informado'}</span></p>${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}</div>`;
+                return `<div class="preview-sub-card no-break"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${c.documentos || 'Não informado'}</span></p>${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}</div>`;
             }).join('');
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Cessão de Direitos</h3><div class="preview-card"><p><strong>Escritura de Cessão (ID):</strong><span>${data.cessao.idEscritura || 'Não informado'}</span></p>${cessionariosHtml}</div></div>`;
         }
@@ -174,7 +174,7 @@ export default async function handler(req, res) {
             </div>`;
         }
         sectionCounter++;
-        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status} (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})</span></p>${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}<p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status} (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status} (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status} (ID: ${data.documentosProcessuais.transito.id || 'N/A'})</span></p></div></div>`;
+        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card no-break"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status} (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})</span></p>${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}<p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status} (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status} (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status} (ID: ${data.documentosProcessuais.transito.id || 'N/A'})</span></p></div></div>`;
         if (data.documentacaoTributaria.length > 0 || (data.custas && data.custas.situacao)) {
             sectionCounter++;
             htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Regularidade Tributária e Custas</h3>
@@ -184,12 +184,16 @@ export default async function handler(req, res) {
         }
         if (data.observacoes.length > 0) {
           sectionCounter++;
-          htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
+          htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card no-break obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
         }
 
         browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
-        const finalHtml = `<html><head><meta charset="UTF-8"><style>${css}</style></head><body><div id="pdf-container"><div class="preview-header"><div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div><h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2></div><div class="preview-content">${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}${htmlSections}</div><div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div></div></body></html>`;
+        const finalHtml = `<html><head><meta charset="UTF-8"><style>${css}.no-break {
+  page-break-inside: avoid;
+  break-inside: avoid-page;
+}
+</style></head><body><div id="pdf-container"><div class="preview-header"><div class="header-text"><p>PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS</p><p class="comarca">VARA ÚNICA DA COMARCA DE NOVA RESENDE/MG</p></div><h1>CERTIDÃO DE REGULARIDADE</h1><h2 class="subtitle">INVENTÁRIO</h2></div><div class="preview-content">${pendencies && pendencies.length > 0 ? `<div class="preview-section pendencies-section"><h3>PENDÊNCIAS</h3><ul class="pendencies-list">${pendencies.map(p => `<li>${p}</li>`).join('')}</ul></div>` : ''}${htmlSections}</div><div class="preview-footer"><div class="signature-line"><p>${data.processo.responsavel.nome || '________________________________'}</p><p>${data.processo.responsavel.cargo || 'Cargo do Responsável'}</p></div></div></div></body></html>`;
 
         await page.setContent(finalHtml, { waitUntil: 'networkidle0' });
         await page.emulateMediaType('print'); 
