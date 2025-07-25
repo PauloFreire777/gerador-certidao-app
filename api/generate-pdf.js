@@ -1,4 +1,4 @@
-// api/generate-pdf.js - VERSÃO FINAL CORRIGIDA
+// api/generate-pdf.js - VERSÃO CORRIGIDA E OTIMIZADA
 
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -19,23 +19,19 @@ const css = `
     }
     
     /* --- CONTROLE ESTRATÉGICO DE QUEBRA DE PÁGINA --- */
-    
-    /* Regra geral: cada seção principal começa em uma nova página */
+    /* Força cada seção principal a começar em uma nova página */
     .preview-section { break-before: page; }
-    
-    /* Exceção: A seção de pendências é a primeira, então ela não deve ter uma quebra de página antes dela. */
-    .preview-section.pendencies-section { break-before: auto; }
-
+    /* A lista de pendências, se existir, não força uma nova página antes dela */
+    .pendencies-section { break-before: auto; }
     /* Evita que um título fique órfão no final de uma página */
     .preview-section h3, .preview-section h4 { break-after: avoid; }
-    
     /* ESSENCIAL: Impede que os cards de conteúdo se quebrem no meio */
     .preview-card, .preview-card-small, .preview-sub-card, .pendencies-list li { break-inside: avoid; }
-    
     /* Tenta manter o rodapé junto do último bloco de conteúdo */
     .preview-footer { break-before: avoid; }
 
-    /* --- ESTILOS VISUAIS --- */
+
+    /* --- ESTILOS VISUAIS (Mantidos) --- */
     .preview-header { text-align: center; background-color: #2c3e50; color: white; padding: 1.5rem; }
     .header-text p { font-family: var(--font-sans); font-weight: 500; margin: 0; line-height: 1.3; font-size: 10pt; }
     .header-text .comarca { font-size: 12pt; font-weight: 700; }
@@ -80,45 +76,37 @@ function getHeirNameById(id, allHeirs) { const find = (heirs) => { for(const h o
 function getEditalStatus(edital) { if (edital.determinado === 'Não') return 'Não determinada a expedição.'; if (edital.status === 'Não Expedido') return 'Expedição pendente.'; if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`; return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`; }
 function getCustasStatus(custas) { if (custas.situacao === 'Isenção') return 'Isento de custas.'; if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.'; if (custas.situacao === 'Devidas') { const c = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente'; const p = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente'; return `${c}, ${p}.`; } return 'Situação não informada.'; }
 
-// FUNÇÃO DE HERDEIROS COM HTML CORRIGIDO (ESSENCIAL PARA EVITAR ARQUIVO CORROMPIDO)
+// FUNÇÃO DE HERDEIROS COM HTML LIMPO
 function generateHeirsHtml(heirs, allAdvogados, level = 0) {
     if (!heirs || heirs.length === 0) return '';
     return heirs.map(h => {
         const advogado = getAdvogadoById(h.advogadoId, allAdvogados);
         const curadorAdvogado = getAdvogadoById(h.curador.advogadoId, allAdvogados);
         const conjugeAdvogado = getAdvogadoById(h.conjuge.advogadoId, allAdvogados);
-        
-        // As condicionais agora só geram o HTML interno, a div principal sempre fecha no final.
-        const procuracaoHtml = h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : '';
-        const advogadoHtml = advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : '';
-        const incapazHtml = h.estado === 'Incapaz' ? `
-            <div class="preview-sub-card warning">
-                <p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>
-                <p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p>
-                ${h.curador.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Curador (ID):</strong> <span>${h.curador.idProcuracao}</span></p></div>` : ''}
-                ${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}
-            </div>` : '';
-        const conjugeHtml = (h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `
-            <div class="preview-sub-card">
-                <p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>
-                ${h.conjuge.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Cônjuge (ID):</strong> <span>${h.conjuge.idProcuracao}</span></p></div>` : ''}
-                ${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}
-            </div>` : '';
-        const falecidoHtml = (h.estado === 'Falecido') ? `
-            <div class="preview-sub-card danger">
-                <p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p>
-                ${(h.representantes && h.representantes.length > 0) ? `<p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}` : ''}
-            </div>` : '';
-
         return `
         <div class="preview-card" style="margin-left: ${level * 20}px;">
             <p><strong>${h.isMeeiro ? 'Meeiro(a):' : (level > 0 ? 'Representante:' : 'Herdeiro(a):')}</strong><span>${h.nome || 'Não informado'} ${h.parentesco ? `(${h.parentesco})` : ''}</span></p>
             <p><strong>Docs. Pessoais (ID):</strong> <span>${h.documentos || 'Não informado'}</span></p>
-            ${procuracaoHtml}
-            ${advogadoHtml}
-            ${incapazHtml}
-            ${conjugeHtml}
-            ${falecidoHtml}
+            ${h.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong> <span>${h.idProcuracao}</span></p></div>` : ''}
+            ${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong> <span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}
+            
+            ${h.estado === 'Incapaz' ? `<div class="preview-sub-card warning">
+                <p><strong>Curador(a):</strong> <span>${h.curador.nome || 'Não informado'}</span></p>
+                <p><strong>Termo de Curador (ID):</strong> <span>${h.curador.idTermo || 'Não informado'}</span></p>
+                ${h.curador.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Curador (ID):</strong> <span>${h.curador.idProcuracao}</span></p></div>` : ''}
+                ${curadorAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Curador:</strong> <span>${curadorAdvogado.nome} (OAB: ${curadorAdvogado.oab})</span></p></div>` : ''}
+            </div>` : ''}
+
+            ${(h.estadoCivil === 'Casado(a)' || h.estadoCivil === 'União Estável') ? `<div class="preview-sub-card">
+                <p><strong>Cônjuge/Comp.:</strong> <span>${h.conjuge.nome || 'Não informado'}</span></p>
+                ${h.conjuge.idProcuracao ? `<div class="info-procuracao" style="margin-top: 8px;"><p><strong>Procuração Cônjuge (ID):</strong> <span>${h.conjuge.idProcuracao}</span></p></div>` : ''}
+                ${conjugeAdvogado ? `<div class="info-advogado" style="margin-top: 8px;"><p><strong>Advogado(a) do Cônjuge:</strong> <span>${conjugeAdvogado.nome} (OAB: ${conjugeAdvogado.oab})</span></p></div>` : ''}
+            </div>` : ''}
+
+            ${(h.estado === 'Falecido') ? `<div class="preview-sub-card danger">
+                <p><strong>Certidão de Óbito (ID):</strong> <span>${h.idCertidaoObito || 'Não informado'}</span></p>
+                ${(h.representantes && h.representantes.length > 0) ? `<p><strong>Sucessão de Herdeiro Falecido:</strong></p>${generateHeirsHtml(h.representantes, allAdvogados, level + 1)}` : ''}
+            </div>` : ''}
         </div>`;
     }).join('');
 }
@@ -126,9 +114,7 @@ function generateHeirsHtml(heirs, allAdvogados, level = 0) {
 
 // --- FUNÇÃO PRINCIPAL DA API (HANDLER) ---
 export default async function handler(req, res) {
-    if (req.method !== 'POST') {
-        return res.status(405).end();
-    }
+    if (req.method !== 'POST') return res.status(405).end();
     let browser = null;
     try {
         const { state: data, pendencies } = req.body;
@@ -138,57 +124,6 @@ export default async function handler(req, res) {
 
         let sectionCounter = 0;
         let htmlSections = '';
-        
-        if (data.processo.numero) {
-            sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Dados do Processo</h3><div class="preview-card"><p><strong>Número:</strong><span>${data.processo.numero}</span></p>${data.processo.cumulativo ? `<p><strong>Tipo:</strong><span>Inventário Cumulativo</span></p>` : ''}${data.processo.advogados.length > 0 ? `<div class="info-advogado" style="margin-top: 1rem;"><p style="margin:0;"><strong>Advogados:</strong></p><ul style="list-style: none; padding-left: 10px; margin-top: 5px;">${data.processo.advogados.map(adv => `<li>- ${adv.nome} (OAB: ${adv.oab})</li>`).join('')}</ul></div>` : ''}</div></div>`;
-        }
-        if (data.falecidos.length > 0) {
-            sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. De Cujus</h3>${data.falecidos.map(f => `<div class="preview-card"><p><strong>Nome:</strong><span>${f.nome}</span></p><p><strong>Data do Óbito:</strong><span>${formatDate(f.dataFalecimento)}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${f.documentos || 'Não informado'}</span></p><p><strong>Cert. Óbito (ID):</strong><span>${f.idCertidaoObito || 'Não informado'}</span></p></div>`).join('')}</div>`;
-        }
-        if (data.inventariante.nome || herdeirosValidos.length > 0) {
-            sectionCounter++;
-            const inventarianteAdvogado = getAdvogadoById(data.inventariante.advogadoId, data.processo.advogados);
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Inventariante, Herdeiros e Sucessores</h3>${data.inventariante.nome ? `<div class="preview-card"><h4>Inventariante</h4><p><strong>Nome:</strong><span>${data.inventariante.nome}</span></p><p><strong>Parentesco:</strong><span>${data.inventariante.parentesco || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${data.inventariante.documentos || 'Não informado'}</span></p><p><strong>Termo de Comp. (ID):</strong><span>${data.inventariante.idTermoCompromisso || 'Não informado'}</span></p>${data.inventariante.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${data.inventariante.idProcuracao}</span></p></div>` : ''}${inventarianteAdvogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${inventarianteAdvogado.nome} (OAB: ${inventarianteAdvogado.oab})</span></p></div>` : ''}</div>` : ''}${generateHeirsHtml(herdeirosValidos, data.processo.advogados)}</div>`;
-        }
-        if (data.renuncia.houveRenuncia && data.renuncia.renunciantes.length > 0) {
-            sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Renúncia de Direitos</h3>${data.renuncia.renunciantes.map(r => `<div class="preview-card"><p><strong>Renunciante:</strong><span>${getHeirNameById(r.herdeiroId, herdeirosValidos)}</span></p><p><strong>Tipo:</strong><span>${r.tipo}</span></p><p><strong>Escritura/Termo (ID):</strong><span>${r.idEscritura || 'Não informado'}</span></p></div>`).join('')}</div>`;
-        }
-        if (data.cessao.houveCessao && data.cessao.cessionarios.length > 0) {
-            sectionCounter++;
-            const cessionariosHtml = data.cessao.cessionarios.map(c => {
-                const advogado = getAdvogadoById(c.advogadoId, data.processo.advogados);
-                return `<div class="preview-sub-card"><p><strong>Cessionário:</strong><span>${c.nome || 'Não informado'}</span></p><p><strong>Docs. Pessoais (ID):</strong><span>${c.documentos || 'Não informado'}</span></p>${c.idProcuracao ? `<div class="info-procuracao"><p><strong>Procuração (ID):</strong><span>${c.idProcuracao}</span></p></div>` : ''}${advogado ? `<div class="info-advogado"><p><strong>Advogado(a):</strong><span>${advogado.nome} (OAB: ${advogado.oab})</span></p></div>` : ''}</div>`;
-            }).join('');
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Cessão de Direitos</h3><div class="preview-card"><p><strong>Escritura de Cessão (ID):</strong><span>${data.cessao.idEscritura || 'Não informado'}</span></p>${cessionariosHtml}</div></div>`;
-        }
-        if (hasBens) {
-            sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Relação de Bens, Direitos e Dívidas</h3>
-                ${data.bens.imoveis.length > 0 ? `<h4>Bens Imóveis</h4>${data.bens.imoveis.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'} (Matrícula: ${item.matricula || 'N/A'})</span></p><p><strong>ID da Matrícula:</strong> <span>${item.idMatricula || 'Pendente'}</span></p>${item.tipo === 'Urbano' && item.iptu.determinado ? `<p><strong>IPTU:</strong> <span>${ item.iptu.id ? `Juntado (ID: ${item.iptu.id})` : 'Pendente' }</span></p>` : ''}${item.tipo === 'Rural' ? `${ item.itr.determinado ? `<p><strong>ITR:</strong> <span>${ item.itr.id ? `Juntado (ID: ${item.itr.id})` : 'Pendente' }</span></p>` : ''}${ item.ccir.determinado ? `<p><strong>CCIR:</strong> <span>${ item.ccir.id ? `Juntado (ID: ${item.ccir.id})` : 'Pendente' }</span></p>` : ''}${ item.car.determinado ? `<p><strong>CAR:</strong> <span>${ item.car.id ? `Juntado (ID: ${item.car.id})` : 'Pendente' }</span></p>` : ''}` : ''}${hasIncapaz && !item.avaliado ? `<p class="warning-text"><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p class="success-text"><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
-                ${data.bens.veiculos.length > 0 ? `<h4>Veículos</h4>${data.bens.veiculos.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong> <span>${item.descricao || 'N/A'}</span></p><p><strong>Placa:</strong> <span>${item.placa || 'N/A'}</span></p><p><strong>Renavam:</strong> <span>${item.renavam || 'N/A'}</span></p><p><strong>ID do CRLV:</strong> <span>${item.idCRLV || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p class="warning-text"><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p class="success-text"><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}` : ''}
-                ${data.bens.semoventes.length > 0 ? `<h4>Semoventes</h4>${data.bens.semoventes.map(item => `<div class="preview-card-small"><p><strong>Descrição:</strong><span>${item.descricao}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p>${hasIncapaz && !item.avaliado ? `<p class="warning-text"><strong>Avaliação Judicial:</strong> <span>Pendente</span></p>` : ''}${hasIncapaz && item.avaliado ? `<p class="success-text"><strong>Avaliação Judicial:</strong> <span>Realizada (ID: ${item.idAvaliacao || 'Pendente'})</span></p>`: ''}</div>`).join('')}`: ''}
-                ${data.bens.valoresResiduais.length > 0 ? `<h4>Valores Residuais</h4>${data.bens.valoresResiduais.map(item => `<div class="preview-card-small"><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Instituição:</strong><span>${item.instituicao || 'N/A'}</span></p><p><strong>Valor (R$):</strong><span>${item.valor || 'N/A'}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
-                ${data.bens.dividas.length > 0 ? `<h4>Dívidas do Espólio</h4>${data.bens.dividas.map(item => `<div class="preview-card-small"><p><strong>Credor:</strong><span>${item.credor}</span></p><p><strong>Tipo:</strong><span>${item.tipo}</span></p><p><strong>Valor (R$):</strong><span>${item.valor}</span></p><p><strong>Doc. (ID):</strong><span>${item.idDocumento || 'Pendente'}</span></p></div>`).join('')}`: ''}
-                ${data.bens.houvePedidoAlvara && data.bens.alvaras.length > 0 ? `<h4>Alvarás</h4>${data.bens.alvaras.map(item => `<div class="preview-card-small"><p><strong>Finalidade:</strong><span>${item.finalidade}</span></p><p><strong>Requerimento:</strong><span>${item.idRequerimento ? `ID: ${item.idRequerimento}`:'Não requerido'}</span></p>${item.idRequerimento ? `<p><strong>Status:</strong><span>${item.statusDeferimento}</span></p>`:''}${item.statusDeferimento === 'Deferido' ? `<p><strong>Expedição:</strong><span>${item.idExpedicao || 'Pendente'}</span></p>`:''}${item.idExpedicao ? `<p><strong>Prestou Contas:</strong><span>${item.prestouContas}</span></p>`:''}</div>`).join('')}`: ''}
-            </div>`;
-        }
-        sectionCounter++;
-        htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Documentos Processuais</h3><div class="preview-card"><p><strong>Primeiras Declarações:</strong> <span>${data.documentosProcessuais.primeirasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${data.documentosProcessuais.primeirasDeclaracoes.id || 'N/A'})` : 'Não Apresentada'}</span></p>${data.documentosProcessuais.testamentosCensec.map(item => `<p><strong>${item.deixouTestamento ? `Testamento (${item.nomeFalecido})` : `Certidão CENSEC (${item.nomeFalecido})`}:</strong><span>${item.id ? `Apresentado (ID: ${item.id})` : 'Pendente'}</span></p>`).join('')}<p><strong>Edital:</strong> <span>${getEditalStatus(data.documentosProcessuais.edital)}</span></p><p><strong>Últimas Declarações:</strong> <span>${data.documentosProcessuais.ultimasDeclaracoes.status === 'Apresentada' ? `Apresentada (ID: ${data.documentosProcessuais.ultimasDeclaracoes.id || 'N/A'})` : 'Não Apresentada'}</span></p>${hasIncapaz ? `<p><strong>Manifestação do MP:</strong> <span>${data.documentosProcessuais.manifestacaoMP.status === 'Manifestado' ? `Manifestado (ID: ${data.documentosProcessuais.manifestacaoMP.id || 'N/A'})` : 'Pendente'}</span></p>` : ''}<p><strong>Sentença:</strong> <span>${data.documentosProcessuais.sentenca.status === 'Proferida' ? `Proferida (ID: ${data.documentosProcessuais.sentenca.id || 'N/A'})` : 'Não Proferida'}</span></p><p><strong>Trânsito em Julgado:</strong> <span>${data.documentosProcessuais.transito.status === 'Ocorrido' ? `Ocorrido (ID: ${data.documentosProcessuais.transito.id || 'N/A'})` : 'Não Ocorrido'}</span></p></div></div>`;
-        
-        if (data.documentacaoTributaria.length > 0 || (data.custas && data.custas.situacao)) {
-            sectionCounter++;
-            htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Regularidade Tributária e Custas</h3>
-            ${data.documentacaoTributaria.map(trib => `<div class="preview-card"><h4>Tributos de: <strong>${trib.nomeFalecido}</strong></h4><p><strong>Status ITCD:</strong><span>${trib.statusItcd}</span></p><p><strong>CND Municipal:</strong><span>${trib.cndMunicipal.status === 'Juntada' ? `Juntada (ID: ${trib.cndMunicipal.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Estadual:</strong><span>${trib.cndEstadual.status === 'Juntada' ? `Juntada (ID: ${trib.cndEstadual.id || 'N/A'})` : 'Não Juntada'}</span></p><p><strong>CND Federal:</strong><span>${trib.cndFederal.status === 'Juntada' ? `Juntada (ID: ${trib.cndFederal.id || 'N/A'})` : 'Não Juntada'}</span></p></div>`).join('')}
-            ${data.custas ? `<div class="preview-card"><h4>Custas Processuais</h4><p><strong>Situação:</strong><span>${getCustasStatus(data.custas)}</span></p></div>` : ''}
-            </div>`;
-        }
-        if (data.observacoes.length > 0) {
-          sectionCounter++;
-          htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
-        }
 
         if (data.processo.numero) {
             sectionCounter++;
@@ -240,7 +175,6 @@ export default async function handler(req, res) {
           sectionCounter++;
           htmlSections += `<div class="preview-section"><h3>${sectionCounter}. Observações Adicionais</h3>${data.observacoes.map(obs => `<div class="preview-card obs-${obs.relevancia.toLowerCase()}"><p><strong>${obs.titulo || 'Observação'}</strong></p><p class="obs-content"><span>${obs.conteudo}</span></p></div>`).join('')}</div>`;
         }
-
 
         browser = await puppeteer.launch({ args: chromium.args, defaultViewport: chromium.defaultViewport, executablePath: await chromium.executablePath(), headless: chromium.headless });
         const page = await browser.newPage();
@@ -287,16 +221,12 @@ export default async function handler(req, res) {
         
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Length', pdfBuffer.length);
-        // Usar res.end() é mais robusto para enviar o buffer binário final.
-        res.status(200).end(pdfBuffer);
+        res.status(200).send(pdfBuffer); 
         
     } catch (error) {
         console.error('Erro ao gerar o PDF:', error);
-        // Garante que o erro seja enviado como JSON para depuração no frontend.
         res.status(500).json({ message: 'Erro ao gerar o PDF.', error: error.message });
     } finally {
-        if (browser !== null) {
-            await browser.close();
-        }
+        if (browser !== null) { await browser.close(); }
     }
 }
