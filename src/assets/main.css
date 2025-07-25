@@ -605,54 +605,113 @@ fieldset legend { padding: 0 0.5rem; font-weight: 600; }
     .preview-panel { padding: 1.5rem; }
 }
 
-/* ===== REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF (VERSÃO FINAL E ESTÁVEL) ===== */
+/* ===== REGRAS DE IMPRESSÃO E GERAÇÃO DE PDF (VERSÃO FINAL PROFISSIONAL) ===== */
 
 @media print {
-    /* Regra universal para forçar a impressão de cores de fundo e textos */
-    * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        color-adjust: exact !important;
-    }
+  /* Regra universal para forçar a impressão de cores de fundo em TODOS os elementos */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-    body {
-        background-color: white !important;
-        font-size: 10pt; /* Tamanho base para o PDF */
-    }
+  /* Configuração geral da página e da fonte */
+  body {
+    font-family: 'Times New Roman', serif;
+    background: white !important;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
 
-    /* Esconde elementos da UI que não devem ir para o PDF */
-    .main-header, .form-panel, .tab-navigation {
-        display: none !important;
-    }
+  /* Define a margem para todas as páginas do PDF */
+  @page {
+    margin: 2cm;
+  }
 
-    /* Expande o container do PDF para ocupar toda a área de impressão */
-    .preview-panel-container, #pdf-container, .preview-panel {
-        width: 100% !important;
-        height: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        border: none !important;
-        box-shadow: none !important;
-        overflow: visible !important;
-        background-color: white !important;
-    }
-    
-    .preview-content {
-        padding: 0 !important;
-    }
+  /* Esconde elementos da interface que não devem aparecer no PDF */
+  .main-header, .form-panel, .toolbar, .tabs-container {
+    display: none !important;
+  }
 
-    /* Evita quebras de página "ruins" dentro de elementos importantes */
-    .preview-section, .preview-card, .preview-card-small, .preview-sub-card {
-        page-break-inside: avoid;
-    }
+  /* Expande o painel de preview para ocupar toda a área de impressão */
+  .preview-panel-container, .preview-panel {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    background-color: white !important;
+  }
 
-    /* Evita que um título de seção fique sozinho no final de uma página */
-    .preview-section h3, .preview-section h4 {
-        page-break-after: avoid;
-    }
+  /* Estilo do Cabeçalho do PDF */
+  .preview-header {
+    background-color: #2c3e50 !important;
+    color: white !important;
+    padding: 25px 0 !important;
+    margin: 0 0 25px 0 !important;
+    border-radius: 0 !important;
+    border-bottom: 3px solid #8B0000 !important;
+  }
 
-    /* Força uma quebra de página ANTES da seção de assinatura, se necessário, para não ficar órfã */
-    .preview-footer {
-        page-break-before: auto;
-    }
+  /* Controle de Quebra de Página */
+  .preview-section, .preview-card, .preview-card-small {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .preview-section h3 {
+    page-break-after: avoid !important;
+  }
+
+  .preview-footer {
+      page-break-before: auto; /* Evita iniciar o rodapé em uma página nova desnecessariamente */
+      margin-top: 50px;
+      padding-top: 25px;
+      border-top: 1px solid #ccc;
+  }
+
+  /* Estilos específicos para os cards e títulos no PDF */
+  .preview-section h3 {
+    font-family: var(--font-sans) !important;
+    background-color: #f2f2f2 !important;
+    border-left: 5px solid #8B0000 !important;
+    padding: 8px 15px !important;
+    margin-top: 30px !important;
+    margin-bottom: 20px !important;
+    font-size: 14pt !important;
+  }
+
+  .preview-card p {
+    display: grid !important;
+    grid-template-columns: 220px 1fr; /* Aumenta espaço para o label */
+    gap: 10px;
+    margin-bottom: 10px !important;
+    border-bottom: 1px dotted #eee;
+    padding-bottom: 10px;
+  }
+
+   .preview-card p:last-child {
+      border-bottom: none;
+   }
+
+  .preview-card strong {
+    min-width: auto !important;
+    text-align: right;
+    color: #333;
+  }
+
+  /* Estilo da Seção de Pendências */
+  .pendencies-section {
+    border: 1px solid #c0392b !important;
+    background-color: #fff5f5 !important;
+    padding: 15px;
+  }
+
+  .pendencies-list {
+    columns: 2;
+    column-gap: 40px;
+  }
 }
