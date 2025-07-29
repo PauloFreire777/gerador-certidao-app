@@ -363,83 +363,78 @@ export default {
         reader.readAsText(file);
         event.target.value = '';
     },
-    async generatePdf() {
-        console.log("Enviando dados para o servidor de PDF...");
-        this.isLoading = true;
-        try {
-            const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
-          
-            if (!apiUrl) {
-                throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento.");
-            }
-          
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    state: this.state,
-               
-                    pendencies: this.pendencies
-                }),
-            });
-           
-            if (!response.ok) {
-           
-                const errorData = await response.json().catch(() => ({ message: response.statusText }));
-                throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
-            }
-           
-            const pdfBlob = await response.blob();
-            const url = window.URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Certidao-${this.state.processo.numero || 'NOVO'}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-       
-        } catch (error) {
-            console.error("Erro ao gerar o PDF:", error);
-            alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
-        } finally {
-            this.isLoading = false;
+   async generatePdf() {
+  this.isLoading = true;
+  console.log("Iniciando geração de PDF...");
+
+  // Verifica se a API do Electron (que criamos no preload.js) está disponível
+  if (window.electronAPI) {
+    // --- LÓGICA PARA A VERSÃO DESKTOP (ELECTRON) ---
+    console.log("Modo Electron detectado. Enviando dados para o processo local.");
+    try {
+      const result = await window.electronAPI.generatePdf({
+        state: this.state,
+        pendencies: this.pendencies
+      });
+
+      if (result.success) {
+        alert(`PDF salvo com sucesso em: ${result.filePath}`);
+      } else {
+        // Se o usuário cancelou ou houve um erro
+        console.error("Erro ao gerar PDF local:", result.message);
+        if (result.message !== 'Operação cancelada pelo usuário.') {
+            alert(`Não foi possível gerar o PDF. Detalhe: ${result.message}`);
         }
-    },
-    toggleTheme() {
-        this.theme = this.theme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', this.theme);
-        localStorage.setItem('certidaoTheme', this.theme);
-    },
-    formatDate(dateString) {
-        if (!dateString) return 'Não informado';
-        try {
-            const date = new Date(dateString + 'T00:00:00');
-            if (isNaN(date.getTime())) return dateString;
-            return date.toLocaleDateString('pt-BR');
-        } catch (e) {
-            return dateString;
-        }
-    },
-    getEditalStatus() {
-        const edital = this.state.documentosProcessuais.edital;
-        if (edital.determinado === 'Não') return 'Não determinada a expedição.';
-        if (edital.status === 'Não Expedido') return 'Expedição pendente.';
-        if (edital.prazoDecorrido === 'Não') return `Expedido (ID: ${edital.id || 'N/A'}), aguardando decurso de prazo.`;
-        return `Expedido (ID: ${edital.id || 'N/A'}), prazo decorrido (ID: ${edital.idDecursoPrazo || 'N/A'}).`;
-    },
-    getCustasStatus() {
-        const custas = this.state.custas;
-        if (custas.situacao === 'Isenção') return 'Isento de custas.';
-        if (custas.situacao === 'Ao final') return 'Custas a serem pagas ao final do processo.';
-        if (custas.situacao === 'Devidas') {
-            const calculo = custas.calculada === 'Sim' ? `Calculada (ID: ${custas.idCalculo || 'N/A'})` : 'Cálculo pendente';
-            const pagamento = custas.paga === 'Sim' ? `Pagas (ID: ${custas.idPagamento || 'N/A'})` : 'Pagamento pendente';
-            return `${calculo}, ${pagamento}.`;
-        }
-        return 'Situação não informada.';
-    },
-  },
+      }
+    } catch (error) {
+      console.error("Erro grave ao comunicar com o processo Electron:", error);
+      alert(`Ocorreu um erro inesperado: ${error.message}`);
+    } finally {
+      this.isLoading = false;
+    }
+
+  } else {
+    // --- LÓGICA ANTIGA PARA A VERSÃO WEB (VERCEL) ---
+    console.log("Modo Web detectado. Enviando dados para a API serverless.");
+    try {
+      const apiUrl = import.meta.env.PROD ? '/api/generate-pdf' : import.meta.env.VITE_API_URL;
+      
+      if (!apiUrl) {
+        throw new Error("A URL da API não está configurada para o ambiente de desenvolvimento.");
+      }
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state: this.state,
+          pendencies: this.pendencies
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`O servidor respondeu com erro ${response.status}: ${errorData.message}`);
+      }
+      
+      const pdfBlob = await response.blob();
+      const url = window.URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Certidao-${this.state.processo.numero || 'NOVO'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Erro ao gerar o PDF via API:", error);
+      alert(`Não foi possível gerar o PDF. Detalhe: ${error.message}`);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+},
  
   mounted() {
     this.loadStateFromLocalStorage();
